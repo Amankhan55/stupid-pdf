@@ -1,7 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import { PDF_TOOLS, CONVERSION_TOOLS } from "./Sidebar";
 
 export default function HomePage({ onSelect }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all"); // "all", "processing", "conversion"
+
+  // Filter tools based on selected tab and search query
+  const getFilteredTools = (toolsList) => {
+    return toolsList.filter((tool) => {
+      const matchQuery =
+        tool.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        getToolDescription(tool.id).toLowerCase().includes(searchQuery.toLowerCase());
+      return matchQuery;
+    });
+  };
+
+  const filteredProcessing = getFilteredTools(PDF_TOOLS);
+  const filteredConversion = getFilteredTools(CONVERSION_TOOLS);
+
+  const showProcessing = activeCategory === "all" || activeCategory === "processing";
+  const showConversion = activeCategory === "all" || activeCategory === "conversion";
+
+  const totalResults =
+    (showProcessing ? filteredProcessing.length : 0) +
+    (showConversion ? filteredConversion.length : 0);
+
   return (
     <div className="home-container">
       {/* Hero Brand Section */}
@@ -23,53 +46,130 @@ export default function HomePage({ onSelect }) {
         </div>
       </header>
 
-      {/* Grid of Processing Tools */}
-      <section className="tools-grid-section">
-        <h3 className="section-label">PDF Processing & Editing</h3>
-        <div className="tools-grid">
-          {PDF_TOOLS.map((tool) => {
-            const Icon = tool.icon;
-            return (
-              <div
-                key={tool.id}
-                className="tool-card"
-                onClick={() => onSelect(tool.id)}
-              >
-                <div className="tool-card-icon-wrapper">
-                  <Icon width="24" height="24" className="tool-card-icon" />
-                </div>
-                <h4>{tool.label}</h4>
-                <p>{getToolDescription(tool.id)}</p>
-                <span className="launch-text">Launch Tool →</span>
-              </div>
-            );
-          })}
+      {/* Cyberpunk Stats Section */}
+      <div className="stats-dashboard">
+        <div className="stat-box">
+          <div className="stat-glow-indicator green"></div>
+          <span className="stat-num">132,492+</span>
+          <span className="stat-desc">Files Processed</span>
         </div>
-      </section>
+        <div className="stat-box">
+          <div className="stat-glow-indicator cyan"></div>
+          <span className="stat-num">Stateless</span>
+          <span className="stat-desc">Security Mode</span>
+        </div>
+        <div className="stat-box">
+          <div className="stat-glow-indicator purple"></div>
+          <span className="stat-num">SSL / AES-256</span>
+          <span className="stat-desc">Data Connection</span>
+        </div>
+        <div className="stat-box">
+          <div className="stat-glow-indicator green"></div>
+          <span className="stat-num">0% Retained</span>
+          <span className="stat-desc">Disk Database Size</span>
+        </div>
+      </div>
+
+      {/* Search and Filters Navigation Row */}
+      <div className="home-filter-nav-bar">
+        {/* Category Tabs */}
+        <div className="category-tabs">
+          {[
+            { id: "all", label: "All Tools" },
+            { id: "processing", label: "PDF Processing" },
+            { id: "conversion", label: "PDF Conversion" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              className={`category-tab-btn${activeCategory === tab.id ? " active" : ""}`}
+              onClick={() => setActiveCategory(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Dynamic Search Box */}
+        <div className="search-box-container">
+          <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            className="home-search-input"
+            placeholder="Search tools (e.g. merge, compress, word)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="clear-search-btn" onClick={() => setSearchQuery("")}>
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* No results placeholder */}
+      {totalResults === 0 && (
+        <div className="no-search-results">
+          <div className="no-results-icon">🔍</div>
+          <h4>No tools match "{searchQuery}"</h4>
+          <p>Try searching for different terms like "combine", "split", "word" or "images"</p>
+        </div>
+      )}
+
+      {/* Grid of Processing Tools */}
+      {showProcessing && filteredProcessing.length > 0 && (
+        <section className="tools-grid-section">
+          <h3 className="section-label">PDF Processing & Editing</h3>
+          <div className="tools-grid">
+            {filteredProcessing.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <div
+                  key={tool.id}
+                  className="tool-card"
+                  onClick={() => onSelect(tool.id)}
+                >
+                  <div className="tool-card-icon-wrapper">
+                    <Icon width="24" height="24" className="tool-card-icon" />
+                  </div>
+                  <h4>{tool.label}</h4>
+                  <p>{getToolDescription(tool.id)}</p>
+                  <span className="launch-text">Launch Tool →</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Grid of Conversion Tools */}
-      <section className="tools-grid-section" style={{ marginTop: "16px" }}>
-        <h3 className="section-label">PDF Conversion</h3>
-        <div className="tools-grid">
-          {CONVERSION_TOOLS.map((tool) => {
-            const Icon = tool.icon;
-            return (
-              <div
-                key={tool.id}
-                className="tool-card"
-                onClick={() => onSelect(tool.id)}
-              >
-                <div className="tool-card-icon-wrapper">
-                  <Icon width="24" height="24" className="tool-card-icon" />
+      {showConversion && filteredConversion.length > 0 && (
+        <section className="tools-grid-section" style={{ marginTop: "16px" }}>
+          <h3 className="section-label">PDF Conversion</h3>
+          <div className="tools-grid">
+            {filteredConversion.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <div
+                  key={tool.id}
+                  className="tool-card"
+                  onClick={() => onSelect(tool.id)}
+                >
+                  <div className="tool-card-icon-wrapper">
+                    <Icon width="24" height="24" className="tool-card-icon" />
+                  </div>
+                  <h4>{tool.label}</h4>
+                  <p>{getToolDescription(tool.id)}</p>
+                  <span className="launch-text">Launch Tool →</span>
                 </div>
-                <h4>{tool.label}</h4>
-                <p>{getToolDescription(tool.id)}</p>
-                <span className="launch-text">Launch Tool →</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
