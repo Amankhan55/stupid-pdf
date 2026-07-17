@@ -20,9 +20,6 @@ export default function App() {
           </div>
           <div className="header-nav">
             <span className="header-badge">Stateless Engine</span>
-            <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer" className="header-link">
-              API Docs
-            </a>
           </div>
         </header>
 
