@@ -183,15 +183,22 @@ export default function HomePage({ onSelect }) {
 
           <div className="hero-pills">
             <div className="hero-pill">
-              <div className="hero-pill-dot" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#46F5B0" }}>
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
               In-Memory Processing
             </div>
             <div className="hero-pill">
-              <div className="hero-pill-dot purple" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#46F5B0" }}>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
               No File Uploads
             </div>
             <div className="hero-pill">
-              <div className="hero-pill-dot blue" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "#46F5B0" }}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+              </svg>
               Private & Secure
             </div>
           </div>
@@ -217,25 +224,47 @@ export default function HomePage({ onSelect }) {
         {/* Right — Upload Illustration */}
         <div className="hero-right">
           <div className="hero-upload-zone" onClick={() => onSelect("merge")}>
-            {/* Ambient bg radial */}
+
+            {/* Subtle ambient glow */}
             <div style={{
               position: "absolute", inset: 0,
-              background: "radial-gradient(ellipse 70% 60% at 50% 40%, rgba(70,245,176,0.04) 0%, transparent 70%)",
+              background: "radial-gradient(ellipse 60% 50% at 50% 35%, rgba(70,245,176,0.05) 0%, transparent 70%)",
               pointerEvents: "none"
             }} />
 
-            {/* PDF illustration */}
-            <div className="pdf-illustration">
-              <div className="orbit-ring" />
-              <div className="orbit-ring" />
-              <div className="orbit-ring" />
-              <div className="pdf-illustration-bg" />
-              <div className="pdf-icon-3d" />
+            {/* 3D PDF Document Illustration */}
+            <div className="pdf-hero-illustration">
+              {/* Outer orbit ring with dots */}
+              <div className="pdf-orbit-ring">
+                <div className="pdf-orbit-dot" style={{ top: "8%", right: "8%" }} />
+                <div className="pdf-orbit-dot" style={{ bottom: "15%", left: "5%", background: "#00D5FF", boxShadow: "0 0 6px #00D5FF" }} />
+                <div className="pdf-orbit-dot" style={{ top: "45%", right: "-2%", width: "5px", height: "5px", background: "rgba(70,245,176,0.4)" }} />
+              </div>
+
+              {/* PDF Document card */}
+              <div className="pdf-doc-card">
+                {/* Dog-ear fold */}
+                <div className="pdf-doc-fold" />
+                {/* Acrobat-style icon in center */}
+                <div className="pdf-doc-icon">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="rgba(70,245,176,0.08)" stroke="rgba(70,245,176,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points="14 2 14 8 20 8" stroke="rgba(70,245,176,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <path d="M9 13h6M9 17h4" stroke="rgba(70,245,176,0.35)" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+                  </svg>
+                </div>
+                {/* PDF label */}
+                <div className="pdf-doc-label">PDF</div>
+              </div>
+
+              {/* Shadow under card */}
+              <div className="pdf-doc-shadow" />
             </div>
 
             <div className="upload-zone-label">Drop your PDF here</div>
             <div className="upload-zone-sub">or click to browse files</div>
-            <div className="upload-zone-meta">Supports: PDF · Max file size: 200MB</div>
+            <div style={{ width: "100%", height: "1px", background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
+            <div className="upload-zone-meta">Supports: PDF &nbsp;•&nbsp; Max file size: 200MB</div>
           </div>
         </div>
       </section>

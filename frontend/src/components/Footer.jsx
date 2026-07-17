@@ -3,48 +3,56 @@ import React from "react";
 const features = [
   {
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
       </svg>
     ),
-    color: "#FFB020",
-    bg: "rgba(255, 176, 32, 0.1)",
+    color: "#46F5B0",
+    gradient: "linear-gradient(135deg, rgba(70,245,176,0.18) 0%, rgba(70,245,176,0.04) 100%)",
+    border: "rgba(70,245,176,0.2)",
+    glow: "rgba(70,245,176,0.12)",
     title: "Lightning Fast",
     desc: "Process files in seconds with in-memory engine.",
   },
   {
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
     color: "#46F5B0",
-    bg: "rgba(70, 245, 176, 0.1)",
+    gradient: "linear-gradient(135deg, rgba(70,245,176,0.15) 0%, rgba(0,213,255,0.06) 100%)",
+    border: "rgba(70,245,176,0.18)",
+    glow: "rgba(70,245,176,0.10)",
     title: "Privacy First",
     desc: "We never store your files. Your data stays with you.",
   },
   {
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
         <line x1="8" y1="21" x2="16" y2="21" />
         <line x1="12" y1="17" x2="12" y2="21" />
       </svg>
     ),
     color: "#8B5CFF",
-    bg: "rgba(139, 92, 255, 0.1)",
+    gradient: "linear-gradient(135deg, rgba(139,92,255,0.18) 0%, rgba(139,92,255,0.04) 100%)",
+    border: "rgba(139,92,255,0.2)",
+    glow: "rgba(139,92,255,0.12)",
     title: "Stateless Engine",
     desc: "No sessions. No storage. Just pure processing power.",
   },
   {
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="16 18 22 12 16 6" />
         <polyline points="8 6 2 12 8 18" />
       </svg>
     ),
     color: "#00D5FF",
-    bg: "rgba(0, 213, 255, 0.1)",
+    gradient: "linear-gradient(135deg, rgba(0,213,255,0.18) 0%, rgba(0,213,255,0.04) 100%)",
+    border: "rgba(0,213,255,0.2)",
+    glow: "rgba(0,213,255,0.12)",
     title: "Open Source",
     desc: "Built with love. Contributions are always welcome.",
   },
@@ -53,15 +61,23 @@ const features = [
 export default function Footer() {
   return (
     <footer className="footer">
-      {/* Feature Strip */}
+      {/* Feature Cards Strip */}
       <div className="footer-features">
         {features.map((f) => (
-          <div key={f.title} className="footer-feature-item">
-            <div className="footer-feature-icon" style={{ background: f.bg, color: f.color }}>
+          <div
+            key={f.title}
+            className="footer-feature-item"
+            style={{
+              background: f.gradient,
+              border: `1px solid ${f.border}`,
+              boxShadow: `0 0 24px ${f.glow}`,
+            }}
+          >
+            <div className="footer-feature-icon" style={{ color: f.color, background: `${f.color}18`, border: `1px solid ${f.border}` }}>
               {f.icon}
             </div>
             <div>
-              <div className="footer-feature-title">{f.title}</div>
+              <div className="footer-feature-title" style={{ color: "#fff" }}>{f.title}</div>
               <div className="footer-feature-desc">{f.desc}</div>
             </div>
           </div>
@@ -71,6 +87,7 @@ export default function Footer() {
       {/* Bottom Row */}
       <div className="footer-bottom">
         <div className="footer-left-group">
+          <img src="/logo.png" alt="StupidPDF" style={{ width: 22, height: 22, borderRadius: 6, boxShadow: "0 0 10px rgba(70,245,176,0.3)" }} />
           <span className="footer-logo-text">
             Stupid<span>PDF</span>
           </span>
@@ -80,9 +97,11 @@ export default function Footer() {
         </div>
 
         <div className="footer-links">
-          <button className="footer-link">Privacy</button>
-          <button className="footer-link">Terms</button>
-          <button className="footer-link">Contact</button>
+          <a href="#" className="footer-link">Blog</a>
+          <a href="#" className="footer-link">About</a>
+          <a href="#" className="footer-link">Privacy</a>
+          <a href="#" className="footer-link">Terms</a>
+          <a href="#" className="footer-link">Contact</a>
         </div>
 
         <div className="footer-social-links">
@@ -98,7 +117,7 @@ export default function Footer() {
               <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
             </svg>
           </a>
-          {/* Twitter */}
+          {/* Twitter / X */}
           <a
             href="https://twitter.com"
             target="_blank"
