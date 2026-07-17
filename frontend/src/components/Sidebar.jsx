@@ -33,17 +33,19 @@ export default function Sidebar({ active, onSelect }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{
-            fontSize: "1.25rem",
-            background: "linear-gradient(135deg, var(--accent-start), var(--accent-end))",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            fontWeight: "900",
-            lineHeight: 1
-          }}>⚡</span>
-          <h1>StupidPDF</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <img
+            src="/logo.png"
+            alt="StupidPDF Logo"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "6px",
+              boxShadow: "0 0 10px rgba(0, 242, 254, 0.4)",
+              objectFit: "cover"
+            }}
+          />
+          <h1 style={{ letterSpacing: "-0.01em" }}>StupidPDF</h1>
         </div>
         <p>PDF Processing Suite</p>
       </div>
