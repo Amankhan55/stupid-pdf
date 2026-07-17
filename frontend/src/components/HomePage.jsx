@@ -1,5 +1,5 @@
 import React from "react";
-import { TOOLS } from "./Sidebar";
+import { PDF_TOOLS, CONVERSION_TOOLS } from "./Sidebar";
 
 export default function HomePage({ onSelect }) {
   return (
@@ -23,11 +23,35 @@ export default function HomePage({ onSelect }) {
         </div>
       </header>
 
-      {/* Grid of Tools */}
+      {/* Grid of Processing Tools */}
       <section className="tools-grid-section">
-        <h3 className="section-label">Process & Optimize Documents</h3>
+        <h3 className="section-label">PDF Processing & Editing</h3>
         <div className="tools-grid">
-          {TOOLS.map((tool) => {
+          {PDF_TOOLS.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <div
+                key={tool.id}
+                className="tool-card"
+                onClick={() => onSelect(tool.id)}
+              >
+                <div className="tool-card-icon-wrapper">
+                  <Icon width="24" height="24" className="tool-card-icon" />
+                </div>
+                <h4>{tool.label}</h4>
+                <p>{getToolDescription(tool.id)}</p>
+                <span className="launch-text">Launch Tool →</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Grid of Conversion Tools */}
+      <section className="tools-grid-section" style={{ marginTop: "16px" }}>
+        <h3 className="section-label">PDF Conversion</h3>
+        <div className="tools-grid">
+          {CONVERSION_TOOLS.map((tool) => {
             const Icon = tool.icon;
             return (
               <div
@@ -64,6 +88,10 @@ function getToolDescription(id) {
     "reverse": "Flip the entire page structure in reverse order.",
     "insert-blank": "Surgically add blank empty pages anywhere in a file.",
     "add-pdf": "Insert an entire PDF file directly inside another document.",
+    "pdf-to-images": "Convert PDF pages into PNG or JPG images packed in a ZIP.",
+    "images-to-pdf": "Combine multiple PNG/JPG images into a single PDF.",
+    "word-to-pdf": "Convert Word docx files into styled PDF format.",
+    "pdf-to-word": "Convert PDFs back into editable Word docx files.",
   };
   return descriptions[id] || "";
 }

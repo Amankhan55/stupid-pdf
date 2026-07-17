@@ -242,3 +242,92 @@ def get_pdf_info(pdf_bytes: bytes) -> dict:
         "width": float(first_page.mediabox.width) if first_page else 0,
         "height": float(first_page.mediabox.height) if first_page else 0,
     }
+
+
+def pdf_to_images(pdf_bytes: bytes, image_format: str = "png") -> List[tuple]:
+    """
+    Convert all pages of a PDF to images.
+    Returns a list of tuples containing (filename, image_bytes).
+    """
+    import fitz  # PyMuPDF
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    image_list = []
+
+    for i in range(len(doc)):
+        page = doc.load_page(i)
+        pix = page.get_pixmap(dpi=150)
+        img_bytes = pix.tobytes(image_format)
+        image_list.append((f"page_{i+1}.{image_format}", img_bytes))
+
+    return image_list
+
+
+def images_to_pdf(image_bytes_list: List[bytes]) -> bytes:
+    """Convert a list of images to a single combined PDF."""
+    from PIL import Image
+    images = []
+
+    for img_bytes in image_bytes_list:
+        img = Image.open(io.BytesIO(img_bytes))
+        # Ensure conversion to RGB format so it fits in PDF standard
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        images.append(img)
+
+    if not images:
+        raise ValueError("At least one image is required.")
+
+    output = io.BytesIO()
+    # Save all images merged sequentially into a single PDF stream
+    images[0].save(output, format="PDF", save_all=True, append_images=images[1:])
+    return output.getvalue()
+
+
+def word_to_pdf(docx_bytes: bytes) -> bytes:
+    """Convert .docx file bytes to a styled PDF using mammoth & xhtml2pdf."""
+    import mammoth
+    from xhtml2pdf import pisa
+
+    # Convert DOCX layout markup to clean HTML
+    result = mammoth.convert_to_html(io.BytesIO(docx_bytes))
+    html_content = result.value
+
+    # We xhtml2pdf compile the HTML markup to PDF stream
+    pdf_io = io.BytesIO()
+    pisa_status = pisa.CreatePDF(html_content, dest=pdf_io)
+    
+    if pisa_status.err:
+        raise RuntimeError("Failed to convert HTML template layout to PDF.")
+
+    return pdf_io.getvalue()
+
+
+def pdf_to_word(pdf_bytes: bytes) -> bytes:
+    """Convert PDF to editable .docx Word file using pdf2docx."""
+    import tempfile
+    import os
+    from pdf2docx import Converter
+
+    # Write PDF stream to named temp file for pdf2docx converter utility
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_in:
+        temp_in.write(pdf_bytes)
+        pdf_path = temp_in.name
+
+    docx_path = pdf_path.replace(".pdf", ".docx")
+
+    try:
+        cv = Converter(pdf_path)
+        cv.convert(docx_path)
+        cv.close()
+
+        with open(docx_path, "rb") as f:
+            docx_bytes = f.read()
+
+        return docx_bytes
+    finally:
+        # Clean up both temporary files from the server OS disk
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+        if os.path.exists(docx_path):
+            os.remove(docx_path)
+

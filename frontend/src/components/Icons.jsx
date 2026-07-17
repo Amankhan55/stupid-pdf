@@ -126,3 +126,42 @@ export const FileIcon = (props) => (
     <path d="M14 2v4a2 2 0 0 0 2 2h4" />
   </svg>
 );
+
+export const PdfToImageIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    <path d="M16 2h6v6" />
+    <path d="M16 8 22 2" />
+  </svg>
+);
+
+export const ImageToPdfIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v10" />
+    <polyline points="14 2 14 8 20 8" />
+    <circle cx="9" cy="18" r="2" />
+    <path d="M13 18l3.5-3.5" />
+  </svg>
+);
+
+export const WordToPdfIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <path d="M8 13h8" />
+    <path d="M8 17h6" />
+    <path d="M9 9h1" />
+  </svg>
+);
+
+export const PdfToWordIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <path d="m8 13 4 4 4-4" />
+    <path d="M12 9v8" />
+  </svg>
+);
+

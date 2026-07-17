@@ -126,10 +126,7 @@ export async function reversePdf(file, filename = "") {
 
 export async function insertBlankPages(file, positions, filename = "") {
   const form = buildForm({ file, positions });
-  await downloadBlob(
-    api.post("/insert-blank", form, { responseType: "blob" }),
-    withExt(filename, "pdf")
-  );
+  await downloadBlob(api.post("/insert-blank", form, { responseType: "blob" }), withExt(filename, "pdf"));
 }
 
 export async function addPdfToExisting(baseFile, newFile, position, filename = "") {
@@ -142,3 +139,37 @@ export async function addPdfToExisting(baseFile, newFile, position, filename = "
     withExt(filename, "pdf")
   );
 }
+
+export async function pdfToImages(file, format = "png", filename = "") {
+  const form = buildForm({ file, format });
+  await downloadBlob(
+    api.post("/pdf-to-images", form, { responseType: "blob" }),
+    withExt(filename, "zip")
+  );
+}
+
+export async function imagesToPdf(files, filename = "") {
+  const form = new FormData();
+  files.forEach((f) => form.append("files", f));
+  await downloadBlob(
+    api.post("/images-to-pdf", form, { responseType: "blob" }),
+    withExt(filename, "pdf")
+  );
+}
+
+export async function wordToPdf(file, filename = "") {
+  const form = buildForm({ file });
+  await downloadBlob(
+    api.post("/word-to-pdf", form, { responseType: "blob" }),
+    withExt(filename, "pdf")
+  );
+}
+
+export async function pdfToWord(file, filename = "") {
+  const form = buildForm({ file });
+  await downloadBlob(
+    api.post("/pdf-to-word", form, { responseType: "blob" }),
+    withExt(filename, "docx")
+  );
+}
+

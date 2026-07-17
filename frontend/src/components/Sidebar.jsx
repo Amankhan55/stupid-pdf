@@ -10,10 +10,13 @@ import {
   DuplicateIcon,
   ReverseIcon,
   InsertBlankIcon,
-  AddPdfIcon
+  AddPdfIcon,
+  PdfToImageIcon,
+  ImageToPdfIcon,
+  WordToPdfIcon,
+  PdfToWordIcon
 } from "./Icons";
 
-// Custom Home SVG icon to display in the sidebar menu
 const HomeIcon = (props) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -21,7 +24,7 @@ const HomeIcon = (props) => (
   </svg>
 );
 
-const TOOLS = [
+const PDF_TOOLS = [
   { id: "merge",           icon: MergeIcon,       label: "Merge PDFs" },
   { id: "split",           icon: SplitIcon,       label: "Split PDF" },
   { id: "compress",        icon: CompressIcon,    label: "Compress PDF" },
@@ -35,12 +38,20 @@ const TOOLS = [
   { id: "add-pdf",         icon: AddPdfIcon,      label: "Add PDF to Existing" },
 ];
 
-export { TOOLS };
+const CONVERSION_TOOLS = [
+  { id: "pdf-to-images",   icon: PdfToImageIcon,   label: "PDF to Images" },
+  { id: "images-to-pdf",   icon: ImageToPdfIcon,   label: "Images to PDF" },
+  { id: "word-to-pdf",     icon: WordToPdfIcon,     label: "Word to PDF" },
+  { id: "pdf-to-word",     icon: PdfToWordIcon,     label: "PDF to Word" },
+];
+
+const TOOLS = [...PDF_TOOLS, ...CONVERSION_TOOLS];
+
+export { TOOLS, PDF_TOOLS, CONVERSION_TOOLS };
 
 export default function Sidebar({ active, onSelect }) {
   return (
     <aside className="sidebar">
-      {/* Brand Logo - click takes back to dashboard home */}
       <div className="sidebar-logo" onClick={() => onSelect("home")} style={{ cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
@@ -72,9 +83,27 @@ export default function Sidebar({ active, onSelect }) {
           <span>Home Dashboard</span>
         </button>
 
-        <div className="sidebar-section-label" style={{ paddingTop: "0" }}>PDF Tools</div>
+        {/* PDF Processing Section */}
+        <div className="sidebar-section-label" style={{ paddingTop: "0" }}>PDF Processing</div>
+        {PDF_TOOLS.map((tool) => {
+          const Icon = tool.icon;
+          return (
+            <button
+              key={tool.id}
+              className={`sidebar-item${active === tool.id ? " active" : ""}`}
+              onClick={() => onSelect(tool.id)}
+            >
+              <span className="icon">
+                <Icon width="16" height="16" />
+              </span>
+              <span>{tool.label}</span>
+            </button>
+          );
+        })}
 
-        {TOOLS.map((tool) => {
+        {/* PDF Conversion Section */}
+        <div className="sidebar-section-label" style={{ paddingTop: "16px" }}>PDF Conversion</div>
+        {CONVERSION_TOOLS.map((tool) => {
           const Icon = tool.icon;
           return (
             <button

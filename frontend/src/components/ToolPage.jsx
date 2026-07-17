@@ -12,6 +12,10 @@ import {
   reversePdf,
   insertBlankPages,
   addPdfToExisting,
+  pdfToImages,
+  imagesToPdf,
+  wordToPdf,
+  pdfToWord,
 } from "../api/pdf";
 import {
   MergeIcon,
@@ -24,7 +28,11 @@ import {
   DuplicateIcon,
   ReverseIcon,
   InsertBlankIcon,
-  AddPdfIcon
+  AddPdfIcon,
+  PdfToImageIcon,
+  ImageToPdfIcon,
+  WordToPdfIcon,
+  PdfToWordIcon
 } from "./Icons";
 
 // ─── Drag-to-Rearrange list ────────────────────────────────────────────────────
@@ -163,6 +171,30 @@ const TOOL_META = {
     desc: "Insert an entire PDF into another at any page position.",
     tag: "Merge at Position",
   },
+  "pdf-to-images": {
+    icon: PdfToImageIcon,
+    title: "PDF to Images",
+    desc: "Convert PDF pages into PNG or JPG images packed into a ZIP.",
+    tag: "Convert",
+  },
+  "images-to-pdf": {
+    icon: ImageToPdfIcon,
+    title: "Images to PDF",
+    desc: "Convert a list of images into a single combined PDF document.",
+    tag: "Convert",
+  },
+  "word-to-pdf": {
+    icon: WordToPdfIcon,
+    title: "Word to PDF",
+    desc: "Convert Microsoft Word .docx documents into PDF format.",
+    tag: "Convert",
+  },
+  "pdf-to-word": {
+    icon: PdfToWordIcon,
+    title: "PDF to Word",
+    desc: "Convert PDF documents back into editable Word .docx files.",
+    tag: "Convert",
+  },
 };
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
@@ -184,6 +216,7 @@ export default function ToolPage({ toolId }) {
   const [compressLevel, setCompressLevel] = useState("medium");
   const [compressSavings, setCompressSavings] = useState(null); // { original, compressed }
   const [outputFilename, setOutputFilename] = useState("");
+  const [imageFormat, setImageFormat] = useState("png"); // for pdf-to-images
 
   const meta = TOOL_META[toolId] || {};
 
@@ -203,6 +236,7 @@ export default function ToolPage({ toolId }) {
     setCompressLevel("medium");
     setCompressSavings(null);
     setOutputFilename("");
+    setImageFormat("png");
   }
 
   // When files change on rearrange tool, initialise the order
@@ -275,6 +309,19 @@ export default function ToolPage({ toolId }) {
         case "add-pdf":
           if (files2.length === 0) throw new Error("Please upload the PDF to insert.");
           await addPdfToExisting(files[0], files2[0], parseInt(addPosition), outputFilename);
+          break;
+        case "pdf-to-images":
+          await pdfToImages(files[0], imageFormat, outputFilename);
+          break;
+        case "images-to-pdf":
+          if (files.length === 0) throw new Error("Please upload at least one image file.");
+          await imagesToPdf(files, outputFilename);
+          break;
+        case "word-to-pdf":
+          await wordToPdf(files[0], outputFilename);
+          break;
+        case "pdf-to-word":
+          await pdfToWord(files[0], outputFilename);
           break;
         default:
           throw new Error("Unknown tool.");
@@ -524,6 +571,21 @@ export default function ToolPage({ toolId }) {
           </>
         );
 
+      case "pdf-to-images":
+        return (
+          <div className="form-group">
+            <label>Output Image Format</label>
+            <select
+              className="form-input"
+              value={imageFormat}
+              onChange={(e) => setImageFormat(e.target.value)}
+            >
+              <option value="png">PNG (Portable Network Graphics)</option>
+              <option value="jpg">JPG (Joint Photographic Experts Group)</option>
+            </select>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -543,17 +605,28 @@ export default function ToolPage({ toolId }) {
 
       <div className="card">
         <FileUpload
-          multiple={toolId === "merge"}
+          multiple={toolId === "merge" || toolId === "images-to-pdf"}
           files={files}
           setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
           label={
             toolId === "merge"
               ? "Drop multiple PDFs here (they'll be merged in order)"
+              : toolId === "images-to-pdf"
+              ? "Drop one or more images here (PNG/JPG)"
+              : toolId === "word-to-pdf"
+              ? "Drop your Word document (.docx) here"
               : toolId === "add-pdf"
               ? "Drop the base PDF here"
               : "Drop your PDF here"
           }
-          showInfo={true}
+          showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
+          accept={
+            toolId === "images-to-pdf"
+              ? "image/*"
+              : toolId === "word-to-pdf"
+              ? ".docx"
+              : "application/pdf"
+          }
         />
 
         {renderControls()}

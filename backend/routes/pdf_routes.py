@@ -233,3 +233,71 @@ async def add_pdf(
         return _pdf_response(result, "combined.pdf")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── PDF Conversions ──────────────────────────────────────────────────────────
+
+def _zip_files_response(files_list: List[tuple], zip_name: str) -> StreamingResponse:
+    """Return multiple files of any type packed in a ZIP."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, data in files_list:
+            zf.writestr(name, data)
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+    )
+
+
+@router.post("/pdf-to-images")
+async def pdf_to_images_route(
+    file: UploadFile = File(...),
+    format: str = Form("png"),  # "png" or "jpg"
+):
+    if format not in ("png", "jpg"):
+        raise HTTPException(status_code=400, detail="Format must be 'png' or 'jpg'.")
+    try:
+        data = await file.read()
+        images = pdf_service.pdf_to_images(data, format)
+        return _zip_files_response(images, "images.zip")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/images-to-pdf")
+async def images_to_pdf_route(files: List[UploadFile] = File(...)):
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one image is required.")
+    try:
+        image_bytes_list = [await f.read() for f in files]
+        result = pdf_service.images_to_pdf(image_bytes_list)
+        return _pdf_response(result, "images_combined.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/word-to-pdf")
+async def word_to_pdf_route(file: UploadFile = File(...)):
+    try:
+        docx_bytes = await file.read()
+        result = pdf_service.word_to_pdf(docx_bytes)
+        return _pdf_response(result, "converted.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pdf-to-word")
+async def pdf_to_word_route(file: UploadFile = File(...)):
+    try:
+        pdf_bytes = await file.read()
+        result = pdf_service.pdf_to_word(pdf_bytes)
+        return StreamingResponse(
+            io.BytesIO(result),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": 'attachment; filename="converted.docx"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

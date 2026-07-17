@@ -14,22 +14,33 @@ export default function FileUpload({
   setFiles,
   label = "Drop your PDF here",
   showInfo = true,
+  accept = "application/pdf",
 }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [pageInfo, setPageInfo] = useState({});
 
   async function processFiles(newFiles) {
-    const accepted = Array.from(newFiles).filter(
-      (f) => f.type === "application/pdf"
-    );
+    const accepted = Array.from(newFiles).filter((f) => {
+      if (accept === "application/pdf") {
+        return f.type === "application/pdf";
+      }
+      if (accept === "image/*") {
+        return f.type.startsWith("image/");
+      }
+      if (accept === ".docx") {
+        // docx mime type can vary slightly across OS (e.g. vnd.openxmlformats...)
+        return f.name.endsWith(".docx");
+      }
+      return true;
+    });
     if (!accepted.length) return;
 
     const toAdd = multiple ? accepted : [accepted[0]];
     const combined = multiple ? [...files, ...toAdd] : toAdd;
     setFiles(combined);
 
-    if (showInfo) {
+    if (showInfo && accept === "application/pdf") {
       for (const f of toAdd) {
         try {
           const info = await getPdfInfo(f);
@@ -78,11 +89,13 @@ export default function FileUpload({
           Drag & drop {multiple ? "files" : "a file"} here, or{" "}
           <span>browse</span> to choose
         </p>
-        <p style={{ marginTop: "6px" }}>PDF files only</p>
+        <p style={{ marginTop: "6px" }}>
+          {accept === "application/pdf" ? "PDF files only" : accept === "image/*" ? "Image files only (PNG/JPG)" : "Word documents only (.docx)"}
+        </p>
         <input
           ref={inputRef}
           type="file"
-          accept="application/pdf"
+          accept={accept}
           multiple={multiple}
           style={{ display: "none" }}
           onChange={handleChange}
