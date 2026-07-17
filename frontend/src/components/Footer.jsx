@@ -3,48 +3,48 @@ import React from "react";
 const features = [
   {
     accent: "#3EF9A7",
-    glow: "rgba(62,249,167,0.18)",
-    glowHover: "rgba(62,249,167,0.32)",
+    glow: "rgba(62,249,167,0.06)",
+    glowHover: "rgba(62,249,167,0.18)",
     title: "Lightning Fast",
     desc: "Process PDFs in seconds using an in-memory engine.",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
       </svg>
     ),
   },
   {
     accent: "#54E5FF",
-    glow: "rgba(84,229,255,0.18)",
-    glowHover: "rgba(84,229,255,0.32)",
+    glow: "rgba(84,229,255,0.06)",
+    glowHover: "rgba(84,229,255,0.18)",
     title: "Privacy First",
     desc: "Files never leave your device.",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
   },
   {
     accent: "#A970FF",
-    glow: "rgba(169,112,255,0.18)",
-    glowHover: "rgba(169,112,255,0.32)",
+    glow: "rgba(169,112,255,0.06)",
+    glowHover: "rgba(169,112,255,0.18)",
     title: "Stateless Engine",
     desc: "No uploads. No storage. Everything runs locally.",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       </svg>
     ),
   },
   {
     accent: "#FFC857",
-    glow: "rgba(255,200,87,0.18)",
-    glowHover: "rgba(255,200,87,0.32)",
+    glow: "rgba(255,200,87,0.06)",
+    glowHover: "rgba(255,200,87,0.18)",
     title: "Open Source",
     desc: "Built with Python. Community driven.",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="16 18 22 12 16 6" />
         <polyline points="8 6 2 12 8 18" />
       </svg>
@@ -64,6 +64,9 @@ export default function Footer() {
                 className="feature-strip-col"
                 style={{ "--accent": f.accent, "--glow": f.glow, "--glow-hover": f.glowHover }}
               >
+                {/* Background soft radial glow */}
+                <div className="feature-strip-bg-glow" style={{ background: `radial-gradient(circle, ${f.glow} 0%, transparent 70%)` }} />
+                
                 <div className="feature-strip-icon-ring">
                   {f.icon}
                 </div>
@@ -78,41 +81,8 @@ export default function Footer() {
             </React.Fragment>
           ))}
 
-          {/* Animated wave lines along bottom */}
-          <div className="feature-strip-wave" aria-hidden="true">
-            <svg viewBox="0 0 1200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="waveGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3EF9A7" stopOpacity="0" />
-                  <stop offset="30%" stopColor="#3EF9A7" stopOpacity="0.6" />
-                  <stop offset="60%" stopColor="#54E5FF" stopOpacity="0.5" />
-                  <stop offset="85%" stopColor="#A970FF" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#A970FF" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="waveGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#54E5FF" stopOpacity="0" />
-                  <stop offset="40%" stopColor="#54E5FF" stopOpacity="0.3" />
-                  <stop offset="70%" stopColor="#3EF9A7" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#FFC857" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                className="wave-path-1"
-                d="M0,28 C150,10 300,38 450,22 C600,6 750,36 900,20 C1050,4 1150,30 1200,24"
-                fill="none"
-                stroke="url(#waveGrad1)"
-                strokeWidth="1.5"
-              />
-              <path
-                className="wave-path-2"
-                d="M0,34 C200,18 350,40 500,28 C650,16 800,38 950,26 C1100,14 1160,32 1200,30"
-                fill="none"
-                stroke="url(#waveGrad2)"
-                strokeWidth="1"
-                opacity="0.6"
-              />
-            </svg>
-          </div>
+          {/* Animated 2px Aurora edge line */}
+          <div className="feature-strip-aurora-line" aria-hidden="true" />
         </div>
       </div>
 
