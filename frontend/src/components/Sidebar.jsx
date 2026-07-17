@@ -15,17 +15,10 @@ import {
   ImageToPdfIcon,
   WordToPdfIcon,
   PdfToWordIcon,
-  UnlockIcon
+  UnlockIcon,
 } from "./Icons";
 
-const HomeIcon = (props) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    <polyline points="9 22 9 12 15 12 15 22" />
-  </svg>
-);
-
-const PDF_TOOLS = [
+export const PDF_TOOLS = [
   { id: "merge",           icon: MergeIcon,       label: "Merge PDFs" },
   { id: "split",           icon: SplitIcon,       label: "Split PDF" },
   { id: "compress",        icon: CompressIcon,    label: "Compress PDF" },
@@ -40,87 +33,72 @@ const PDF_TOOLS = [
   { id: "unlock-pdf",      icon: UnlockIcon,      label: "Unlock PDF" },
 ];
 
-const CONVERSION_TOOLS = [
-  { id: "pdf-to-images",   icon: PdfToImageIcon,   label: "PDF to Images" },
-  { id: "images-to-pdf",   icon: ImageToPdfIcon,   label: "Images to PDF" },
-  { id: "word-to-pdf",     icon: WordToPdfIcon,     label: "Word to PDF" },
-  { id: "pdf-to-word",     icon: PdfToWordIcon,     label: "PDF to Word" },
+export const CONVERSION_TOOLS = [
+  { id: "pdf-to-images",   icon: PdfToImageIcon,  label: "PDF to Images" },
+  { id: "images-to-pdf",   icon: ImageToPdfIcon,  label: "Images to PDF" },
+  { id: "word-to-pdf",     icon: WordToPdfIcon,   label: "Word to PDF" },
+  { id: "pdf-to-word",     icon: PdfToWordIcon,   label: "PDF to Word" },
 ];
 
-const TOOLS = [...PDF_TOOLS, ...CONVERSION_TOOLS];
+export const TOOLS = [...PDF_TOOLS, ...CONVERSION_TOOLS];
 
-export { TOOLS, PDF_TOOLS, CONVERSION_TOOLS };
 
 export default function Sidebar({ active, onSelect }) {
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo" onClick={() => onSelect("home")} style={{ cursor: "pointer" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img
-            src="/logo.png"
-            alt="StupidPDF Logo"
-            style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "6px",
-              boxShadow: "0 0 10px rgba(0, 242, 254, 0.4)",
-              objectFit: "cover"
-            }}
-          />
-          <h1 style={{ letterSpacing: "-0.01em" }}>StupidPDF</h1>
-        </div>
-        <p>PDF Processing Suite</p>
-      </div>
-
-      <nav className="sidebar-nav">
-        {/* Dashboard Link */}
-        <button
-          className={`sidebar-item${active === "home" ? " active" : ""}`}
-          onClick={() => onSelect("home")}
-          style={{ marginBottom: "12px" }}
-        >
-          <span className="icon">
-            <HomeIcon />
-          </span>
-          <span>Home Dashboard</span>
-        </button>
-
-        {/* PDF Processing Section */}
-        <div className="sidebar-section-label" style={{ paddingTop: "0" }}>PDF Processing</div>
-        {PDF_TOOLS.map((tool) => {
+    <aside className="tool-sidebar">
+      {/* PDF Processing group */}
+      <div className="tool-sidebar-section">
+        <div className="tool-sidebar-label">PDF Processing</div>
+        {PDF_TOOLS.filter((t) => t.id !== "unlock-pdf").map((tool) => {
           const Icon = tool.icon;
           return (
             <button
               key={tool.id}
-              className={`sidebar-item${active === tool.id ? " active" : ""}`}
+              className={`tool-sidebar-item${active === tool.id ? " active" : ""}`}
               onClick={() => onSelect(tool.id)}
             >
-              <span className="icon">
-                <Icon width="16" height="16" />
+              <span className="sidebar-item-icon">
+                <Icon width="15" height="15" />
               </span>
-              <span>{tool.label}</span>
+              {tool.label}
             </button>
           );
         })}
+      </div>
 
-        {/* PDF Conversion Section */}
-        <div className="sidebar-section-label" style={{ paddingTop: "16px" }}>PDF Conversion</div>
+      {/* Security group */}
+      <div className="tool-sidebar-section">
+        <div className="tool-sidebar-label">Security</div>
+        <button
+          className={`tool-sidebar-item${active === "unlock-pdf" ? " active" : ""}`}
+          onClick={() => onSelect("unlock-pdf")}
+        >
+          <span className="sidebar-item-icon">
+            <UnlockIcon width="15" height="15" />
+          </span>
+          Unlock PDF
+        </button>
+      </div>
+
+      {/* Conversion group */}
+      <div className="tool-sidebar-section">
+        <div className="tool-sidebar-label">Conversion</div>
         {CONVERSION_TOOLS.map((tool) => {
           const Icon = tool.icon;
           return (
             <button
               key={tool.id}
-              className={`sidebar-item${active === tool.id ? " active" : ""}`}
+              className={`tool-sidebar-item${active === tool.id ? " active" : ""}`}
               onClick={() => onSelect(tool.id)}
             >
-              <span className="icon">
-                <Icon width="16" height="16" />
+              <span className="sidebar-item-icon">
+                <Icon width="15" height="15" />
               </span>
-              <span>{tool.label}</span>
+              {tool.label}
             </button>
           );
         })}
-      </nav>
+      </div>
     </aside>
   );
 }

@@ -78,34 +78,41 @@ function DragList({ pages, setPages }) {
 // ─── Status Bar ────────────────────────────────────────────────────────────────
 function StatusBar({ status, message }) {
   if (!status) return null;
-  
-  // Custom SVG status icons matching the Cyberpunk theme
-  const renderIcon = () => {
-    if (status === "loading") return <span className="spinner" />;
-    if (status === "success") {
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      );
-    }
-    return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
-    );
-  };
-
   return (
     <div className={`status-bar ${status}`}>
-      {renderIcon()}
+      {status === "loading" ? <span className="spinner" /> : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          {status === "success"
+            ? <polyline points="20 6 9 17 4 12" />
+            : (<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>)
+          }
+        </svg>
+      )}
       <span>{message}</span>
     </div>
   );
 }
 
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
+const CARD_COLOR = {
+  "merge":           { color: "#46F5B0", bg: "rgba(70,245,176,0.1)" },
+  "split":           { color: "#8B5CFF", bg: "rgba(139,92,255,0.1)" },
+  "compress":        { color: "#FFB020", bg: "rgba(255,176,32,0.1)" },
+  "extract-pages":   { color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
+  "delete-pages":    { color: "#FF5470", bg: "rgba(255,84,112,0.1)" },
+  "rearrange-pages": { color: "#00D5FF", bg: "rgba(0,213,255,0.1)" },
+  "rotate-pages":    { color: "#8B5CFF", bg: "rgba(139,92,255,0.1)" },
+  "duplicate-pages": { color: "#FFD700", bg: "rgba(255,215,0,0.1)" },
+  "reverse":         { color: "#A6FF4D", bg: "rgba(166,255,77,0.1)" },
+  "insert-blank":    { color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
+  "add-pdf":         { color: "#00D5FF", bg: "rgba(0,213,255,0.1)" },
+  "unlock-pdf":      { color: "#FF5F9F", bg: "rgba(255,95,159,0.1)" },
+  "pdf-to-images":   { color: "#A6FF4D", bg: "rgba(166,255,77,0.1)" },
+  "images-to-pdf":   { color: "#46F5B0", bg: "rgba(70,245,176,0.1)" },
+  "word-to-pdf":     { color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
+  "pdf-to-word":     { color: "#8B5CFF", bg: "rgba(139,92,255,0.1)" },
+};
+
 const TOOL_META = {
   "merge": {
     icon: MergeIcon,
@@ -206,7 +213,7 @@ const TOOL_META = {
 };
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
-export default function ToolPage({ toolId }) {
+export default function ToolPage({ toolId, onHome }) {
   const [files, setFiles] = useState([]);
   const [files2, setFiles2] = useState([]); // second file for add-pdf
   const [status, setStatus] = useState(null);
@@ -622,27 +629,49 @@ export default function ToolPage({ toolId }) {
   }
 
   const Icon = meta.icon;
+  const accentCfg = CARD_COLOR[toolId] || { color: "#46F5B0", bg: "rgba(70,245,176,0.1)" };
 
   return (
     <div key={toolId}>
-      <div className="page-header">
-        <div className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          {Icon && <Icon width="12" height="12" />} <span>{meta.tag}</span>
-        </div>
-        <h2>{meta.title}</h2>
-        <p>{meta.desc}</p>
+      {/* Breadcrumb */}
+      <div className="tool-breadcrumb">
+        <button className="breadcrumb-link" onClick={() => onHome?.()}>Dashboard</button>
+        <span className="breadcrumb-sep">›</span>
+        <span className="breadcrumb-current">{meta.title}</span>
       </div>
 
-      <div className="card">
+      <div className="tool-page-card">
+        {/* Header */}
+        <div className="tool-page-header">
+          <div className="tool-page-icon" style={{ background: accentCfg.bg, color: accentCfg.color }}>
+            {Icon && <Icon width="24" height="24" />}
+          </div>
+          <div>
+            <div
+              className="tool-page-tag"
+              style={{
+                background: accentCfg.bg,
+                color: accentCfg.color,
+                border: `1px solid ${accentCfg.color}30`,
+              }}
+            >
+              {meta.tag}
+            </div>
+            <div className="tool-page-title">{meta.title}</div>
+            <div className="tool-page-desc">{meta.desc}</div>
+          </div>
+        </div>
+
+        {/* Upload zone */}
         <FileUpload
           multiple={toolId === "merge" || toolId === "images-to-pdf"}
           files={files}
           setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
           label={
             toolId === "merge"
-              ? "Drop multiple PDFs here (they'll be merged in order)"
+              ? "Drop multiple PDFs here — merged in upload order"
               : toolId === "images-to-pdf"
-              ? "Drop one or more images here (PNG/JPG)"
+              ? "Drop one or more images here (PNG / JPG)"
               : toolId === "word-to-pdf"
               ? "Drop your Word document (.docx) here"
               : toolId === "add-pdf"
@@ -659,88 +688,75 @@ export default function ToolPage({ toolId }) {
           }
         />
 
-        {renderControls()}
+        {/* Per-tool controls */}
+        <div className="form-section">
+          {renderControls()}
+        </div>
 
-        {/* ── Output Filename ── */}
-        <div className="form-group" style={{ marginTop: "24px" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }}>
+        {/* Output Filename */}
+        <div className="output-filename-section">
+          <div className="output-filename-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: accentCfg.color }}>
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <polyline points="17 21 17 13 7 13 7 21" />
               <polyline points="7 3 7 8 15 8" />
             </svg>
-            <span>Output Filename</span>
-            <span style={{
-              background: "rgba(0, 242, 254, 0.12)",
-              border: "1px solid rgba(0, 242, 254, 0.25)",
-              color: "#a5f3fc",
-              fontSize: "0.6rem",
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              padding: "2px 7px",
-              borderRadius: "99px",
-            }}>Optional</span>
-          </label>
+            Output Filename
+            <span className="filename-badge">Optional</span>
+          </div>
           <div style={{ position: "relative" }}>
             <input
               className="form-input"
-              placeholder={toolId === "split" && splitAt.includes(",") ? "e.g. my-split  (saves as my-split.zip)" : "e.g. my-document  (saves as my-document.pdf)"}
+              placeholder={
+                toolId === "split" && splitAt.includes(",")
+                  ? "e.g. my-split  (saves as my-split.zip)"
+                  : "e.g. my-document  (saves as my-document.pdf)"
+              }
               value={outputFilename}
               onChange={(e) => setOutputFilename(e.target.value)}
-              style={{ paddingRight: "80px" }}
+              style={{ paddingRight: "52px" }}
             />
             {outputFilename.trim() && (
               <span style={{
-                position: "absolute",
-                right: "12px",
-                top: "50%",
+                position: "absolute", right: "12px", top: "50%",
                 transform: "translateY(-50%)",
-                fontSize: "0.72rem",
-                color: "var(--text-muted)",
-                fontWeight: 600,
-                pointerEvents: "none",
+                fontSize: "0.72rem", color: "var(--text-muted)",
+                fontWeight: 600, pointerEvents: "none",
               }}>
                 {toolId === "split" && splitAt.includes(",") ? ".zip" : ".pdf"}
               </span>
             )}
           </div>
-          <span className="form-hint">Leave blank to use the default filename. The .pdf extension is added automatically.</span>
+          <span className="form-hint">Leave blank to use the default filename.</span>
         </div>
 
+        {/* Status + Actions */}
         <StatusBar status={status} message={message} />
 
-        <div className="action-bar">
-          <span className="info-text">
-            {files.length > 0 ? (
-              <>
-                <strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready
-              </>
+        <div className="submit-area">
+          <button className="btn-primary" onClick={handleSubmit} disabled={!canSubmit}
+            style={{ opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? "pointer" : "not-allowed" }}
+          >
+            {status === "loading" ? (
+              <><span className="spinner" /> Processing…</>
             ) : (
-              "No files selected"
+              <>
+                {Icon && <Icon width="15" height="15" />}
+                {meta.title}
+              </>
             )}
-          </span>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button className="btn btn-secondary" onClick={resetState}>
-              Reset
-            </button>
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-            >
-              {status === "loading" ? (
-                <><span className="spinner" /> Processing…</>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {Icon && <Icon width="16" height="16" />}
-                  <span>{meta.title}</span>
-                </div>
-              )}
-            </button>
-          </div>
+          </button>
+          <button className="btn-secondary" onClick={resetState}>
+            Reset
+          </button>
+          {files.length > 0 && (
+            <span style={{ marginLeft: "auto", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+              <strong style={{ color: "var(--text-secondary)" }}>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready
+            </span>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

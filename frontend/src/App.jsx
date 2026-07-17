@@ -1,66 +1,65 @@
 import { useState } from "react";
+import Navbar from "./components/Navbar";
 import Sidebar, { TOOLS } from "./components/Sidebar";
 import ToolPage from "./components/ToolPage";
 import HomePage from "./components/HomePage";
+import Footer from "./components/Footer";
 import "./index.css";
 
 export default function App() {
   const [activeTool, setActiveTool] = useState("home");
 
-  const currentTool = TOOLS.find(t => t.id === activeTool);
-
-  if (activeTool === "home") {
-    return (
-      <div className="home-layout">
-        {/* Homepage Header */}
-        <header className="home-header-bar">
-          <div className="header-logo-container" onClick={() => setActiveTool("home")} style={{ cursor: "pointer" }}>
-            <img src="/logo.png" alt="StupidPDF Logo" className="header-logo-img" />
-            <span className="header-brand-name">StupidPDF</span>
-          </div>
-          <div className="header-nav">
-            <span className="header-badge">Stateless Engine</span>
-          </div>
-        </header>
-
-        {/* Homepage Content */}
-        <main className="home-main-content">
-          <HomePage onSelect={setActiveTool} />
-        </main>
-
-        {/* Homepage Footer */}
-        <footer className="home-footer-bar">
-          <div className="footer-left">
-            &copy; {new Date().getFullYear()} StupidPDF. All rights reserved.
-          </div>
-          <div className="footer-right">
-            Processed entirely in-memory. Zero disk retention.
-          </div>
-        </footer>
-      </div>
-    );
-  }
+  const currentTool = TOOLS.find((t) => t.id === activeTool);
+  const isHome = activeTool === "home";
 
   return (
-    <div className="app-layout">
-      {/* Mobile Top Navigation Header */}
-      <header className="mobile-tool-header">
-        <button className="mobile-back-btn" onClick={() => setActiveTool("home")}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          <span>Dashboard</span>
-        </button>
-        <span className="mobile-tool-title">
-          {currentTool ? currentTool.label : "PDF Tool"}
-        </span>
-      </header>
+    <>
+      {/* Ambient background canvas */}
+      <div className="bg-canvas">
+        <div className="bg-grid" />
+      </div>
 
-      <Sidebar active={activeTool} onSelect={setActiveTool} />
-      <main className="main-content">
-        <ToolPage key={activeTool} toolId={activeTool} />
-      </main>
-    </div>
+      <div className="app-shell">
+        {/* Sticky Navbar always on top */}
+        <Navbar onNavigate={setActiveTool} activeSection={isHome ? "home" : null} />
+
+        {isHome ? (
+          /* ── Homepage layout ── */
+          <>
+            <main>
+              <HomePage onSelect={setActiveTool} />
+            </main>
+            <Footer />
+          </>
+        ) : (
+          /* ── Tool page layout ── */
+          <>
+            {/* Mobile top bar (shown only on small screens via CSS) */}
+            <header className="mobile-tool-header">
+              <button className="mobile-back-btn" onClick={() => setActiveTool("home")}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg>
+                Dashboard
+              </button>
+              <span className="mobile-tool-title">
+                {currentTool ? currentTool.label : "Tool"}
+              </span>
+            </header>
+
+            <div className="tool-shell">
+              {/* Left sidebar with tool navigation */}
+              <Sidebar active={activeTool} onSelect={setActiveTool} />
+
+              {/* Main tool content */}
+              <main className="tool-main">
+                <ToolPage key={activeTool} toolId={activeTool} onHome={() => setActiveTool("home")} />
+              </main>
+            </div>
+          </>
+        )}
+      </div>
+    </>
   );
 }
