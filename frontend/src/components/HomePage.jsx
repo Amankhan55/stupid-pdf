@@ -46,29 +46,6 @@ export default function HomePage({ onSelect }) {
         </div>
       </header>
 
-      {/* Cyberpunk Stats Section */}
-      <div className="stats-dashboard">
-        <div className="stat-box">
-          <div className="stat-glow-indicator green"></div>
-          <span className="stat-num">132,492+</span>
-          <span className="stat-desc">Files Processed</span>
-        </div>
-        <div className="stat-box">
-          <div className="stat-glow-indicator cyan"></div>
-          <span className="stat-num">Stateless</span>
-          <span className="stat-desc">Security Mode</span>
-        </div>
-        <div className="stat-box">
-          <div className="stat-glow-indicator purple"></div>
-          <span className="stat-num">SSL / AES-256</span>
-          <span className="stat-desc">Data Connection</span>
-        </div>
-        <div className="stat-box">
-          <div className="stat-glow-indicator green"></div>
-          <span className="stat-num">0% Retained</span>
-          <span className="stat-desc">Disk Database Size</span>
-        </div>
-      </div>
 
       {/* Search and Filters Navigation Row */}
       <div className="home-filter-nav-bar">
