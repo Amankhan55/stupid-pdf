@@ -13,6 +13,14 @@ import {
   AddPdfIcon
 } from "./Icons";
 
+// Custom Home SVG icon to display in the sidebar menu
+const HomeIcon = (props) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
 const TOOLS = [
   { id: "merge",           icon: MergeIcon,       label: "Merge PDFs" },
   { id: "split",           icon: SplitIcon,       label: "Split PDF" },
@@ -32,7 +40,8 @@ export { TOOLS };
 export default function Sidebar({ active, onSelect }) {
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
+      {/* Brand Logo - click takes back to dashboard home */}
+      <div className="sidebar-logo" onClick={() => onSelect("home")} style={{ cursor: "pointer" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
             src="/logo.png"
@@ -50,9 +59,21 @@ export default function Sidebar({ active, onSelect }) {
         <p>PDF Processing Suite</p>
       </div>
 
-      <div className="sidebar-section-label">PDF Tools</div>
-
       <nav className="sidebar-nav">
+        {/* Dashboard Link */}
+        <button
+          className={`sidebar-item${active === "home" ? " active" : ""}`}
+          onClick={() => onSelect("home")}
+          style={{ marginBottom: "12px" }}
+        >
+          <span className="icon">
+            <HomeIcon />
+          </span>
+          <span>Home Dashboard</span>
+        </button>
+
+        <div className="sidebar-section-label" style={{ paddingTop: "0" }}>PDF Tools</div>
+
         {TOOLS.map((tool) => {
           const Icon = tool.icon;
           return (
