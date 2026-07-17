@@ -1,11 +1,13 @@
 import { useState } from "react";
-import Sidebar from "./components/Sidebar";
+import Sidebar, { TOOLS } from "./components/Sidebar";
 import ToolPage from "./components/ToolPage";
 import HomePage from "./components/HomePage";
 import "./index.css";
 
 export default function App() {
   const [activeTool, setActiveTool] = useState("home");
+
+  const currentTool = TOOLS.find(t => t.id === activeTool);
 
   if (activeTool === "home") {
     return (
@@ -44,6 +46,20 @@ export default function App() {
 
   return (
     <div className="app-layout">
+      {/* Mobile Top Navigation Header */}
+      <header className="mobile-tool-header">
+        <button className="mobile-back-btn" onClick={() => setActiveTool("home")}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <span className="mobile-tool-title">
+          {currentTool ? currentTool.label : "PDF Tool"}
+        </span>
+      </header>
+
       <Sidebar active={activeTool} onSelect={setActiveTool} />
       <main className="main-content">
         <ToolPage key={activeTool} toolId={activeTool} />

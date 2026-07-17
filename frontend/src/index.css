@@ -900,28 +900,111 @@ select.form-input {
   transform: translateX(4px);
 }
 
+
+/* ─── Mobile Tool Header ────────────────────────────────────────────────────── */
+.mobile-tool-header {
+  display: none;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .sidebar { width: 220px; }
   .main-content { padding: 28px 24px; }
 }
 
-@media (max-width: 700px) {
-  .app-layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; position: relative; }
-  .main-content { padding: 20px 16px; }
-  .form-row { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  /* Hide the sidebar menu inside internal tool pages */
+  .sidebar {
+    display: none !important;
+  }
+  
+  .app-layout {
+    flex-direction: column;
+  }
+  
+  .main-content {
+    padding: 24px 16px 48px;
+  }
+  
+  /* Show sticky top bar for back navigation */
+  .mobile-tool-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: rgba(12, 15, 26, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .mobile-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  
+  .mobile-back-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-start);
+  }
+  
+  .mobile-tool-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  
+  /* Scale hero typography for mobile visual appeal */
+  .hero-title {
+    font-size: 2.1rem;
+  }
+  .hero-subtitle {
+    font-size: 0.95rem;
+  }
   
   .home-header-bar {
-    padding: 18px 24px;
+    padding: 16px 20px;
   }
   .home-main-content {
-    padding: 24px 20px 48px;
+    padding: 24px 16px 48px;
   }
   .home-footer-bar {
     flex-direction: column;
     gap: 12px;
     text-align: center;
-    padding: 24px;
+    padding: 24px 16px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Stacking upload zones and files */
+  .upload-zone {
+    padding: 32px 20px;
+  }
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .action-bar .btn {
+    width: 100%;
+  }
+  .action-bar .info-text {
+    text-align: center;
   }
 }
