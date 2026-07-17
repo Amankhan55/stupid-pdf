@@ -14,7 +14,8 @@ import {
   PdfToImageIcon,
   ImageToPdfIcon,
   WordToPdfIcon,
-  PdfToWordIcon
+  PdfToWordIcon,
+  UnlockIcon
 } from "./Icons";
 
 const HomeIcon = (props) => (
@@ -36,6 +37,7 @@ const PDF_TOOLS = [
   { id: "reverse",         icon: ReverseIcon,     label: "Reverse Order" },
   { id: "insert-blank",    icon: InsertBlankIcon, label: "Insert Blank Pages" },
   { id: "add-pdf",         icon: AddPdfIcon,      label: "Add PDF to Existing" },
+  { id: "unlock-pdf",      icon: UnlockIcon,      label: "Unlock PDF" },
 ];
 
 const CONVERSION_TOOLS = [

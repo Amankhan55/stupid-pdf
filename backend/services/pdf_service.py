@@ -302,6 +302,33 @@ def word_to_pdf(docx_bytes: bytes) -> bytes:
     return pdf_io.getvalue()
 
 
+def unlock_pdf(pdf_bytes: bytes, password: str = "") -> bytes:
+    """
+    Remove password protection from an encrypted PDF.
+    Tries the provided password first, then an empty string as owner password.
+    Returns the decrypted PDF bytes.
+    Raises ValueError if the PDF is not encrypted or the password is incorrect.
+    """
+    reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
+
+    if not reader.is_encrypted:
+        raise ValueError("This PDF is not password-protected.")
+
+    # Try decrypting with the provided password; PyPDF2 tries both user & owner
+    result = reader.decrypt(password)
+    if result == 0:
+        raise ValueError("Incorrect password. Please provide the correct PDF password.")
+
+    # Re-write all pages to a new writer — this strips the encryption entirely
+    writer = PyPDF2.PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+
+    output = io.BytesIO()
+    writer.write(output)
+    return output.getvalue()
+
+
 def pdf_to_word(pdf_bytes: bytes) -> bytes:
     """Convert PDF to editable .docx Word file using pdf2docx."""
     import tempfile

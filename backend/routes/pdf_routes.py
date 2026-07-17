@@ -301,3 +301,19 @@ async def pdf_to_word_route(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/unlock-pdf")
+async def unlock_pdf_route(
+    file: UploadFile = File(...),
+    password: str = Form(""),
+):
+    """Remove password protection from an encrypted PDF."""
+    try:
+        pdf_bytes = await file.read()
+        result = pdf_service.unlock_pdf(pdf_bytes, password)
+        return _pdf_response(result, "unlocked.pdf")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -173,3 +173,10 @@ export async function pdfToWord(file, filename = "") {
   );
 }
 
+export async function unlockPdf(file, password = "", filename = "") {
+  const form = buildForm({ file, password });
+  await downloadBlob(
+    api.post("/unlock-pdf", form, { responseType: "blob" }),
+    withExt(filename, "pdf")
+  );
+}

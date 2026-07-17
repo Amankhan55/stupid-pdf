@@ -16,6 +16,7 @@ import {
   imagesToPdf,
   wordToPdf,
   pdfToWord,
+  unlockPdf,
 } from "../api/pdf";
 import {
   MergeIcon,
@@ -32,7 +33,8 @@ import {
   PdfToImageIcon,
   ImageToPdfIcon,
   WordToPdfIcon,
-  PdfToWordIcon
+  PdfToWordIcon,
+  UnlockIcon,
 } from "./Icons";
 
 // ─── Drag-to-Rearrange list ────────────────────────────────────────────────────
@@ -195,6 +197,12 @@ const TOOL_META = {
     desc: "Convert PDF documents back into editable Word .docx files.",
     tag: "Convert",
   },
+  "unlock-pdf": {
+    icon: UnlockIcon,
+    title: "Unlock PDF",
+    desc: "Remove password protection from a locked PDF. Enter the correct password to unlock and download an unprotected copy.",
+    tag: "Security",
+  },
 };
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
@@ -217,6 +225,7 @@ export default function ToolPage({ toolId }) {
   const [compressSavings, setCompressSavings] = useState(null); // { original, compressed }
   const [outputFilename, setOutputFilename] = useState("");
   const [imageFormat, setImageFormat] = useState("png"); // for pdf-to-images
+  const [pdfPassword, setPdfPassword] = useState(""); // for unlock-pdf
 
   const meta = TOOL_META[toolId] || {};
 
@@ -237,6 +246,7 @@ export default function ToolPage({ toolId }) {
     setCompressSavings(null);
     setOutputFilename("");
     setImageFormat("png");
+    setPdfPassword("");
   }
 
   // When files change on rearrange tool, initialise the order
@@ -322,6 +332,9 @@ export default function ToolPage({ toolId }) {
           break;
         case "pdf-to-word":
           await pdfToWord(files[0], outputFilename);
+          break;
+        case "unlock-pdf":
+          await unlockPdf(files[0], pdfPassword, outputFilename);
           break;
         default:
           throw new Error("Unknown tool.");
@@ -583,6 +596,23 @@ export default function ToolPage({ toolId }) {
               <option value="png">PNG (Portable Network Graphics)</option>
               <option value="jpg">JPG (Joint Photographic Experts Group)</option>
             </select>
+          </div>
+        );
+
+      case "unlock-pdf":
+        return (
+          <div className="form-group">
+            <label>PDF Password</label>
+            <input
+              className="form-input"
+              type="password"
+              placeholder="Enter the PDF password (leave blank if only owner-locked)"
+              value={pdfPassword}
+              onChange={(e) => setPdfPassword(e.target.value)}
+            />
+            <span className="form-hint">
+              Enter the password used to lock this PDF. Leave blank to attempt removing owner-only restrictions.
+            </span>
           </div>
         );
 

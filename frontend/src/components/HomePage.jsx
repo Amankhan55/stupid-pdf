@@ -169,6 +169,7 @@ function getToolDescription(id) {
     "images-to-pdf": "Combine multiple PNG/JPG images into a single PDF.",
     "word-to-pdf": "Convert Word docx files into styled PDF format.",
     "pdf-to-word": "Convert PDFs back into editable Word docx files.",
+    "unlock-pdf": "Remove password protection from any locked or encrypted PDF.",
   };
   return descriptions[id] || "";
 }
