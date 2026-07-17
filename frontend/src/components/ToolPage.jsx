@@ -13,6 +13,19 @@ import {
   insertBlankPages,
   addPdfToExisting,
 } from "../api/pdf";
+import {
+  MergeIcon,
+  SplitIcon,
+  CompressIcon,
+  ExtractIcon,
+  DeleteIcon,
+  RearrangeIcon,
+  RotateIcon,
+  DuplicateIcon,
+  ReverseIcon,
+  InsertBlankIcon,
+  AddPdfIcon
+} from "./Icons";
 
 // ─── Drag-to-Rearrange list ────────────────────────────────────────────────────
 function DragList({ pages, setPages }) {
@@ -55,11 +68,29 @@ function DragList({ pages, setPages }) {
 // ─── Status Bar ────────────────────────────────────────────────────────────────
 function StatusBar({ status, message }) {
   if (!status) return null;
-  const icons = { loading: null, success: "✅", error: "❌" };
+  
+  // Custom SVG status icons matching the Cyberpunk theme
+  const renderIcon = () => {
+    if (status === "loading") return <span className="spinner" />;
+    if (status === "success") {
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      );
+    }
+    return (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+  };
+
   return (
     <div className={`status-bar ${status}`}>
-      {status === "loading" ? <span className="spinner" /> : icons[status]}
-      {message}
+      {renderIcon()}
+      <span>{message}</span>
     </div>
   );
 }
@@ -67,67 +98,67 @@ function StatusBar({ status, message }) {
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
 const TOOL_META = {
   "merge": {
-    icon: "🔗",
+    icon: MergeIcon,
     title: "Merge PDFs",
     desc: "Combine multiple PDF files into a single document in the order you upload them.",
     tag: "Combine",
   },
   "split": {
-    icon: "✂️",
+    icon: SplitIcon,
     title: "Split PDF",
     desc: "Split a PDF into separate parts at the page numbers you specify.",
     tag: "Divide",
   },
   "compress": {
-    icon: "🗜️",
+    icon: CompressIcon,
     title: "Compress PDF",
     desc: "Reduce the file size of your PDF by removing redundant data and compressing streams.",
     tag: "Optimize",
   },
   "extract-pages": {
-    icon: "📋",
+    icon: ExtractIcon,
     title: "Extract Pages",
     desc: "Pull out specific pages from your PDF and save them as a new document.",
     tag: "Select",
   },
   "delete-pages": {
-    icon: "🗑️",
+    icon: DeleteIcon,
     title: "Delete Pages",
     desc: "Remove specific pages from your PDF permanently.",
     tag: "Remove",
   },
   "rearrange-pages": {
-    icon: "↕️",
+    icon: RearrangeIcon,
     title: "Rearrange Pages",
     desc: "Drag pages to reorder them exactly how you want.",
     tag: "Reorder",
   },
   "rotate-pages": {
-    icon: "🔄",
+    icon: RotateIcon,
     title: "Rotate Pages",
     desc: "Rotate specific pages (or all pages) by 90°, 180°, or 270°.",
     tag: "Transform",
   },
   "duplicate-pages": {
-    icon: "📎",
+    icon: DuplicateIcon,
     title: "Duplicate Pages",
     desc: "Duplicate specific pages, inserting copies immediately after the original.",
     tag: "Copy",
   },
   "reverse": {
-    icon: "⏪",
+    icon: ReverseIcon,
     title: "Reverse Page Order",
     desc: "Flip the entire page order of your PDF — last page becomes first.",
     tag: "Flip",
   },
   "insert-blank": {
-    icon: "➕",
+    icon: InsertBlankIcon,
     title: "Insert Blank Pages",
     desc: "Insert empty pages at specified positions in your PDF.",
     tag: "Insert",
   },
   "add-pdf": {
-    icon: "📂",
+    icon: AddPdfIcon,
     title: "Add PDF to Existing",
     desc: "Insert an entire PDF into another at any page position.",
     tag: "Merge at Position",
@@ -268,10 +299,10 @@ export default function ToolPage({ toolId }) {
               <label>Compression Level</label>
               <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
                 {[
-                  { id: "low",    label: "🟢 Low",    desc: "Safest — removes unused objects" },
-                  { id: "medium", label: "🟡 Medium", desc: "Balanced — removes duplicates & orphans" },
-                  { id: "high",   label: "🔴 High",   desc: "Maximum — also compresses content streams" },
-                ].map(({ id, label, desc }) => (
+                  { id: "low",    label: "Low Quality",    statusColor: "#10b981", desc: "Safest — removes unused objects" },
+                  { id: "medium", label: "Medium Quality", statusColor: "#fbbf24", desc: "Balanced — removes duplicates & orphans" },
+                  { id: "high",   label: "High Quality",   statusColor: "#f43f5e", desc: "Maximum — also compresses content streams" },
+                ].map(({ id, label, statusColor, desc }) => (
                   <button
                     key={id}
                     type="button"
@@ -284,7 +315,7 @@ export default function ToolPage({ toolId }) {
                         ? "2px solid var(--accent-start)"
                         : "1px solid var(--border)",
                       background: compressLevel === id
-                        ? "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.15))"
+                        ? "linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(79, 172, 254, 0.1))"
                         : "var(--bg-input)",
                       color: compressLevel === id ? "var(--text-primary)" : "var(--text-secondary)",
                       cursor: "pointer",
@@ -293,7 +324,10 @@ export default function ToolPage({ toolId }) {
                       fontFamily: "'Inter', sans-serif",
                     }}
                   >
-                    <div style={{ fontWeight: 700, fontSize: "0.85rem" }}>{label}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontWeight: 700, fontSize: "0.85rem" }}>
+                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: statusColor }} />
+                      {label}
+                    </div>
                     <div style={{ fontSize: "0.7rem", marginTop: "4px", opacity: 0.75 }}>{desc}</div>
                   </button>
                 ))}
@@ -495,11 +529,13 @@ export default function ToolPage({ toolId }) {
     }
   }
 
+  const Icon = meta.icon;
+
   return (
     <div key={toolId}>
       <div className="page-header">
-        <div className="tag">
-          {meta.icon} {meta.tag}
+        <div className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          {Icon && <Icon width="12" height="12" />} <span>{meta.tag}</span>
         </div>
         <h2>{meta.title}</h2>
         <p>{meta.desc}</p>
@@ -525,11 +561,16 @@ export default function ToolPage({ toolId }) {
         {/* ── Output Filename ── */}
         <div className="form-group" style={{ marginTop: "24px" }}>
           <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>💾</span> Output Filename
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }}>
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            <span>Output Filename</span>
             <span style={{
-              background: "rgba(99,102,241,0.15)",
-              border: "1px solid rgba(99,102,241,0.25)",
-              color: "#a5b4fc",
+              background: "rgba(0, 242, 254, 0.12)",
+              border: "1px solid rgba(0, 242, 254, 0.25)",
+              color: "#a5f3fc",
               fontSize: "0.6rem",
               fontWeight: 700,
               letterSpacing: "0.06em",
@@ -588,7 +629,10 @@ export default function ToolPage({ toolId }) {
               {status === "loading" ? (
                 <><span className="spinner" /> Processing…</>
               ) : (
-                <>{meta.icon} {meta.title}</>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {Icon && <Icon width="16" height="16" />}
+                  <span>{meta.title}</span>
+                </div>
               )}
             </button>
           </div>

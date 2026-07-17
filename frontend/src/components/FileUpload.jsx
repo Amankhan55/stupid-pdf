@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { getPdfInfo } from "../api/pdf";
+import { UploadCloudIcon, FileIcon } from "./Icons";
 
 function formatBytes(bytes) {
   if (bytes < 1024) return bytes + " B";
@@ -69,7 +70,9 @@ export default function FileUpload({
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
       >
-        <span className="upload-icon">📄</span>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
+          <UploadCloudIcon style={{ color: "var(--accent-start)" }} />
+        </div>
         <h3>{label}</h3>
         <p>
           Drag & drop {multiple ? "files" : "a file"} here, or{" "}
@@ -92,7 +95,9 @@ export default function FileUpload({
             const info = pageInfo[file.name];
             return (
               <div key={idx} className="file-item">
-                <span className="file-icon">📑</span>
+                <span className="file-icon" style={{ display: "flex", color: "var(--accent-start)" }}>
+                  <FileIcon width="18" height="18" />
+                </span>
                 <div className="file-info">
                   <div className="file-name">{file.name}</div>
                   <div className="file-size">

@@ -2,36 +2,36 @@
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────────── */
 :root {
-  --bg-base:        #080c18;
-  --bg-surface:     #0e1528;
-  --bg-card:        #131929;
-  --bg-card-hover:  #1a2038;
-  --bg-input:       #1e2540;
+  --bg-base:        #06080f;
+  --bg-surface:     #0c0f1a;
+  --bg-card:        #111524;
+  --bg-card-hover:  #161c30;
+  --bg-input:       #1a2035;
 
-  --accent-start:   #6366f1;
-  --accent-end:     #a855f7;
-  --accent-glow:    rgba(99, 102, 241, 0.35);
+  --accent-start:   #00f2fe; /* Cyber Neon Cyan */
+  --accent-end:     #4facfe; /* Cyber Blue */
+  --accent-glow:    rgba(0, 242, 254, 0.3);
 
-  --text-primary:   #f1f5f9;
+  --text-primary:   #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted:     #475569;
 
-  --border:         rgba(255, 255, 255, 0.06);
-  --border-focus:   rgba(99, 102, 241, 0.5);
+  --border:         rgba(0, 242, 254, 0.08);
+  --border-focus:   rgba(0, 242, 254, 0.4);
 
   --success:        #10b981;
-  --error:          #ef4444;
-  --warning:        #f59e0b;
+  --error:          #f43f5e;
+  --warning:        #fbbf24;
 
-  --radius-sm:   8px;
-  --radius-md:   14px;
-  --radius-lg:   20px;
-  --radius-xl:   28px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
 
-  --shadow-card: 0 4px 32px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
-  --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.2);
+  --shadow-card: 0 4px 30px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(0, 242, 254, 0.05) inset;
+  --shadow-glow: 0 0 30px rgba(0, 242, 254, 0.15);
 
-  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────────── */
@@ -68,7 +68,7 @@ body {
   padding: 40px 48px;
   overflow-y: auto;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99,102,241,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 242, 254, 0.08) 0%, transparent 60%),
     var(--bg-base);
 }
 
