@@ -1,5 +1,7 @@
 # ⚡ StupidPDF
 
+> **Stupidly Simple. Blazingly Fast.**  
+> *No accounts. No subscriptions. No stored files. Just instant PDF tools powered by a zero-storage processing engine.*  
 > **Live Web App:** [https://stupid-pdf-opal.vercel.app/](https://stupid-pdf-opal.vercel.app/)
 
 A premium, full-stack PDF utility web application built with **React 18 + Vite** on the frontend and **Python FastAPI + PyMuPDF** on the backend. Designed with a sleek, dark-mode glassmorphic interface, stateless in-memory execution, and real-time interactive canvas previews.

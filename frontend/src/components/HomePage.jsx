@@ -106,10 +106,10 @@ export default function HomePage({ onSelect }) {
               <h1 className="hero-title-main">
                 Stupid<span className="brand-accent-pdf">PDF</span>
               </h1>
-              <div className="hero-tagline-gradient">Fast. Private. Local.</div>
+              <div className="hero-tagline-gradient">Stupidly Simple. Blazingly Fast.</div>
               
               <p className="hero-subtitle-desc">
-                The fastest PDF toolkit that runs entirely in your browser with zero server uploads or disk retention.
+                No accounts. No subscriptions. No stored files. Just instant PDF tools powered by a zero-storage processing engine.
               </p>
 
               {/* CTAs */}
