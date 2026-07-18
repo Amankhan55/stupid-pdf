@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import ToolPage from "./components/ToolPage";
 import HomePage from "./components/HomePage";
 import Navbar from "./components/Navbar";
+import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 
 export default function App() {
@@ -23,6 +24,9 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Vercel Web Analytics */}
+      <Analytics />
+
       {/* Glass Top Navbar */}
       <Navbar activeTool={activeTool} onSelectTool={handleSelectTool} />
 
