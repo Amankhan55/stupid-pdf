@@ -206,7 +206,7 @@ const TOOL_META = {
 };
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
-export default function ToolPage({ toolId, initialFile }) {
+export default function ToolPage({ toolId, initialFile, onSelectTool }) {
   const [files, setFiles] = useState(initialFile ? [initialFile] : []);
   const [files2, setFiles2] = useState([]); // second file for add-pdf
   const [status, setStatus] = useState(null);
@@ -357,7 +357,7 @@ export default function ToolPage({ toolId, initialFile }) {
           <div>
             <div className="form-group">
               <label>Compression Level</label>
-              <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+              <div className="compress-options">
                 {[
                   { id: "low",    label: "Low Quality",    statusColor: "#10b981", desc: "Safest — removes unused objects" },
                   { id: "medium", label: "Medium Quality", statusColor: "#fbbf24", desc: "Balanced — removes duplicates & orphans" },
@@ -367,28 +367,13 @@ export default function ToolPage({ toolId, initialFile }) {
                     key={id}
                     type="button"
                     onClick={() => setCompressLevel(id)}
-                    style={{
-                      flex: 1,
-                      padding: "12px 10px",
-                      borderRadius: "var(--radius-sm)",
-                      border: compressLevel === id
-                        ? "2px solid var(--accent-start)"
-                        : "1px solid var(--border)",
-                      background: compressLevel === id
-                        ? "linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(79, 172, 254, 0.1))"
-                        : "var(--bg-input)",
-                      color: compressLevel === id ? "var(--text-primary)" : "var(--text-secondary)",
-                      cursor: "pointer",
-                      textAlign: "center",
-                      transition: "all var(--transition)",
-                      fontFamily: "'Inter', sans-serif",
-                    }}
+                    className={`compress-option${compressLevel === id ? " active" : ""}`}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontWeight: 700, fontSize: "0.85rem" }}>
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: statusColor }} />
+                    <div className="compress-option-title">
+                      <span className="compress-status-dot" style={{ background: statusColor }} />
                       {label}
                     </div>
-                    <div style={{ fontSize: "0.7rem", marginTop: "4px", opacity: 0.75 }}>{desc}</div>
+                    <div className="compress-option-desc">{desc}</div>
                   </button>
                 ))}
               </div>
@@ -625,6 +610,18 @@ export default function ToolPage({ toolId, initialFile }) {
 
   return (
     <div key={toolId}>
+      {/* Mobile Tool Header */}
+      <div className="mobile-tool-header">
+        <button className="mobile-back-btn" onClick={() => onSelectTool && onSelectTool("home")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Back</span>
+        </button>
+        <span className="mobile-tool-title">{meta.title}</span>
+      </div>
+
       <div className="page-header">
         <div className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           {Icon && <Icon width="12" height="12" />} <span>{meta.tag}</span>
