@@ -1326,8 +1326,9 @@ body {
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     position: sticky;
-    top: 72px;
+    top: 0 !important;
     z-index: 90;
+    margin: -16px -16px 20px -16px;
   }
   .mobile-back-btn {
     display: inline-flex;
