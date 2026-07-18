@@ -1398,6 +1398,36 @@ body {
   .compress-option {
     width: 100% !important;
   }
+
+  /* Navigation & Filters Mobile Layout */
+  .nav-filters-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .category-pills {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding-bottom: 8px !important;
+    margin-bottom: -8px !important;
+    width: 100% !important;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .category-pills::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-pill-btn {
+    flex-shrink: 0 !important;
+  }
+
+  .search-wrapper {
+    max-width: 100% !important;
+  }
 }
 
 @media (max-width: 500px) {
