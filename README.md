@@ -1,4 +1,4 @@
-# ⚡ StupidPDF
+# ⚡ StupidPDF : https://stupid-pdf-opal.vercel.app/
 
 A premium, full-stack PDF processing web app built with **React + Vite** (frontend) and **Python FastAPI** (backend).
 
