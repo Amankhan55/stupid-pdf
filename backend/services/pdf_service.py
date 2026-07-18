@@ -1,4 +1,6 @@
 import io
+import json
+import zipfile
 from typing import List
 import PyPDF2
 
@@ -358,3 +360,314 @@ def pdf_to_word(pdf_bytes: bytes) -> bytes:
         if os.path.exists(docx_path):
             os.remove(docx_path)
 
+
+# ─── NEW FEATURES ─────────────────────────────────────────────────────────────
+
+
+def protect_pdf(pdf_bytes: bytes, password: str) -> bytes:
+    """
+    Encrypt a PDF with AES-256 password protection using PyMuPDF.
+    Both user and owner password are set to the provided password.
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    output = io.BytesIO()
+    doc.save(
+        output,
+        encryption=fitz.PDF_ENCRYPT_AES_256,
+        user_pw=password,
+        owner_pw=password,
+        permissions=int(
+            fitz.PDF_PERM_ACCESSIBILITY
+            | fitz.PDF_PERM_PRINT
+            | fitz.PDF_PERM_COPY
+            | fitz.PDF_PERM_ANNOTATE
+        ),
+    )
+    return output.getvalue()
+
+
+def add_watermark(
+    pdf_bytes: bytes,
+    text: str,
+    opacity: float = 0.3,
+    angle: float = 45.0,
+    font_size: int = 48,
+    color: tuple = (0.6, 0.6, 0.6),
+) -> bytes:
+    """
+    Overlay diagonal text watermark on every page of a PDF.
+    opacity: 0.0 (invisible) to 1.0 (opaque)
+    angle: rotation angle in degrees (any value, not just multiples of 90)
+    color: RGB tuple, each 0.0–1.0
+
+    Uses fitz.TextWriter + rotation matrix instead of insert_text(rotate=...)
+    because insert_text only accepts 0, 90, 180, 270 for the rotate parameter.
+    """
+    import fitz
+    import math
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+    for page in doc:
+        rect = page.rect
+        cx = rect.width / 2
+        cy = rect.height / 2
+
+        # Build the text writer and measure the text bounding box at origin
+        tw_measure = fitz.TextWriter(rect)
+        font = fitz.Font("helv")
+        tw_measure.append((0, 0), text, font=font, fontsize=font_size)
+        text_rect = tw_measure.text_rect
+        tw_w = text_rect.width
+        tw_h = abs(text_rect.height)
+
+        # Place baseline origin so the text block is visually centered on the page
+        # In PyMuPDF, y increases downward; text baseline is at the y coordinate given.
+        origin_x = cx - tw_w / 2
+        origin_y = cy + tw_h / 4  # slight upward shift to visually center
+
+        # Build the real TextWriter with opacity
+        tw = fitz.TextWriter(rect)
+        tw.append((origin_x, origin_y), text, font=font, fontsize=font_size)
+
+        # Build a rotation matrix for arbitrary angle around the page center
+        rad = math.radians(angle)
+        cos_a = math.cos(rad)
+        sin_a = math.sin(rad)
+        rot_matrix = fitz.Matrix(cos_a, sin_a, -sin_a, cos_a, 0, 0)
+
+        # write_text with morph=(pivot, matrix) rotates text around pivot.
+        # color and opacity are valid kwargs on write_text, NOT on append().
+        tw.write_text(page, color=color, opacity=opacity, morph=(fitz.Point(cx, cy), rot_matrix))
+
+
+    output = io.BytesIO()
+    doc.save(output)
+    return output.getvalue()
+
+
+
+def add_page_numbers(
+    pdf_bytes: bytes,
+    position: str = "bottom-center",
+    font_size: int = 10,
+    start_number: int = 1,
+    prefix: str = "Page",
+) -> bytes:
+    """
+    Stamp page numbers on every page of the PDF.
+    position: 'bottom-center' | 'bottom-left' | 'bottom-right' | 'top-center' | 'top-left' | 'top-right'
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    margin = 28
+
+    for i, page in enumerate(doc):
+        label = f"{prefix} {i + start_number}" if prefix else str(i + start_number)
+        rect = page.rect
+        text_width = len(label) * font_size * 0.55  # approximate
+
+        if "bottom" in position:
+            y = rect.height - margin
+        else:
+            y = margin + font_size
+
+        if "center" in position:
+            x = (rect.width - text_width) / 2
+        elif "left" in position:
+            x = margin
+        else:
+            x = rect.width - text_width - margin
+
+        page.insert_text(
+            fitz.Point(x, y),
+            label,
+            fontsize=font_size,
+            color=(0.2, 0.2, 0.2),
+            overlay=True,
+        )
+
+    output = io.BytesIO()
+    doc.save(output)
+    return output.getvalue()
+
+
+def extract_text(pdf_bytes: bytes) -> str:
+    """Extract all text from a PDF and return as a plain string."""
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    text_parts = []
+    for i, page in enumerate(doc):
+        text_parts.append(f"--- Page {i + 1} ---\n")
+        text_parts.append(page.get_text("text"))
+        text_parts.append("\n")
+    return "\n".join(text_parts)
+
+
+def extract_images_from_pdf(pdf_bytes: bytes) -> List[tuple]:
+    """
+    Extract all embedded images from a PDF.
+    Returns a list of (filename, image_bytes) tuples for ZIP packaging.
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    images = []
+    img_count = 0
+
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        image_list = page.get_images(full=True)
+
+        for img_index, img_info in enumerate(image_list):
+            xref = img_info[0]
+            try:
+                base_image = doc.extract_image(xref)
+                img_bytes = base_image["image"]
+                img_ext = base_image["ext"]
+                img_count += 1
+                filename = f"page{page_num + 1}_img{img_index + 1}.{img_ext}"
+                images.append((filename, img_bytes))
+            except Exception:
+                continue
+
+    if not images:
+        raise ValueError("No images found in this PDF.")
+
+    return images
+
+
+def pdf_to_excel(pdf_bytes: bytes) -> bytes:
+    """
+    Extract tables from a PDF and write to an .xlsx file.
+    Uses pdfplumber for table extraction and openpyxl for Excel writing.
+    """
+    import pdfplumber
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    wb.remove(wb.active)  # Remove default empty sheet
+    sheet_count = 0
+
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for page_num, page in enumerate(pdf.pages):
+            tables = page.extract_tables()
+            if not tables:
+                continue
+
+            for table_idx, table in enumerate(tables):
+                sheet_count += 1
+                ws = wb.create_sheet(title=f"P{page_num + 1}_T{table_idx + 1}")
+                for row in table:
+                    ws.append([cell if cell is not None else "" for cell in row])
+
+    if sheet_count == 0:
+        # If no tables found, extract text into a single sheet
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            ws = wb.create_sheet(title="Extracted Text")
+            for page_num, page in enumerate(pdf.pages):
+                text = page.extract_text() or ""
+                ws.append([f"--- Page {page_num + 1} ---"])
+                for line in text.split("\n"):
+                    ws.append([line])
+                ws.append([""])
+
+    output = io.BytesIO()
+    wb.save(output)
+    return output.getvalue()
+
+
+def add_signature(
+    pdf_bytes: bytes,
+    sig_image_bytes: bytes,
+    page_num: int = 1,
+    x: float = 100.0,
+    y: float = 100.0,
+    width: float = 200.0,
+    height: float = 80.0,
+) -> bytes:
+    """
+    Embed a signature image onto a specific page of the PDF.
+    page_num: 1-indexed page number
+    x, y: top-left corner position in PDF points
+    width, height: size of signature in PDF points
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total = len(doc)
+    page_idx = max(0, min(page_num - 1, total - 1))
+    page = doc.load_page(page_idx)
+
+    rect = fitz.Rect(x, y, x + width, y + height)
+    page.insert_image(rect, stream=sig_image_bytes)
+
+    output = io.BytesIO()
+    doc.save(output)
+    return output.getvalue()
+
+
+def annotate_pdf(pdf_bytes: bytes, annotations: list) -> bytes:
+    """
+    Add annotations to a PDF.
+    Each annotation is a dict with:
+      - type: 'highlight' | 'text'
+      - page: 1-indexed page number
+      - x, y: position in PDF points
+      - For 'highlight': x2, y2 (end of highlight rect), color (hex string)
+      - For 'text': content (string), width, height
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+    def hex_to_rgb(hex_color: str) -> tuple:
+        """Convert '#rrggbb' or 'rrggbb' to (r, g, b) floats 0..1."""
+        hex_color = hex_color.lstrip("#")
+        if len(hex_color) == 3:
+            hex_color = "".join(c * 2 for c in hex_color)
+        r = int(hex_color[0:2], 16) / 255
+        g = int(hex_color[2:4], 16) / 255
+        b = int(hex_color[4:6], 16) / 255
+        return (r, g, b)
+
+    total = len(doc)
+
+    for ann in annotations:
+        page_num = int(ann.get("page", 1))
+        page_idx = max(0, min(page_num - 1, total - 1))
+        page = doc.load_page(page_idx)
+        ann_type = ann.get("type", "text")
+        x = float(ann.get("x", 50))
+        y = float(ann.get("y", 50))
+
+        if ann_type == "highlight":
+            x2 = float(ann.get("x2", x + 200))
+            y2 = float(ann.get("y2", y + 20))
+            color_hex = ann.get("color", "#FFFF00")
+            rgb = hex_to_rgb(color_hex)
+            rect = fitz.Rect(x, y, x2, y2)
+            # Use rect_annot with opacity for a reliable highlight overlay box
+            rect_ann = page.add_rect_annot(rect)
+            rect_ann.set_colors(stroke=rgb, fill=rgb)
+            rect_ann.set_opacity(0.35)
+            rect_ann.update()
+
+        elif ann_type == "text":
+            content = ann.get("content", "")
+            ann_width = float(ann.get("width", 200))
+            ann_height = float(ann.get("height", 60))
+            color_hex = ann.get("color", "#FFD700")
+            rgb = hex_to_rgb(color_hex)
+            rect = fitz.Rect(x, y, x + ann_width, y + ann_height)
+            # border_color is omitted to avoid PyMuPDF rich_text ValueError
+            text_ann = page.add_freetext_annot(
+                rect,
+                content,
+                fontsize=12,
+                text_color=(0, 0, 0),
+                fill_color=rgb,
+            )
+            text_ann.update()
+
+    output = io.BytesIO()
+    doc.save(output)
+    return output.getvalue()

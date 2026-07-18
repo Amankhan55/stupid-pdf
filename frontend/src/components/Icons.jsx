@@ -190,3 +190,139 @@ export const UploadCloudIcon = (props) => (
     <path d="M9 15L12 12L15 15" stroke="#00C9FF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+/* ─── 17. PROTECT ICON (Purple/Pink Shield Lock) ────────────────────────── */
+export const ProtectIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="protect-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#9B6DFF" />
+        <stop offset="100%" stopColor="#ec4899" />
+      </linearGradient>
+    </defs>
+    <path d="M12 2L4 6v6c0 5.25 3.5 10.15 8 11.5C16.5 22.15 20 17.25 20 12V6L12 2z"
+      fill="url(#protect-grad)" opacity="0.25" stroke="url(#protect-grad)" strokeWidth="1.8" strokeLinejoin="round" />
+    <rect x="9" y="11" width="6" height="5" rx="1" stroke="url(#protect-grad)" strokeWidth="2" />
+    <path d="M12 8a2 2 0 0 1 2 2v1H10v-1a2 2 0 0 1 2-2z" stroke="url(#protect-grad)" strokeWidth="1.8" />
+    <circle cx="12" cy="13.5" r="0.8" fill="#ec4899" />
+  </svg>
+);
+
+/* ─── 18. WATERMARK ICON (Cyan/Blue Droplet Layers) ─────────────────────── */
+export const WatermarkIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="watermark-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00C9FF" />
+        <stop offset="100%" stopColor="#4D8DFF" />
+      </linearGradient>
+    </defs>
+    <path d="M12 3C12 3 6 9.5 6 14a6 6 0 0 0 12 0c0-4.5-6-11-6-11z"
+      fill="url(#watermark-grad)" opacity="0.25" stroke="url(#watermark-grad)" strokeWidth="1.8" strokeLinejoin="round" />
+    <path d="M9 14.5c0-1.5 1.5-4 3-6" stroke="#00C9FF" strokeWidth="1.6" strokeLinecap="round" opacity="0.7" />
+    <line x1="5" y1="19" x2="19" y2="5" stroke="#4D8DFF" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+    <line x1="5" y1="21" x2="21" y2="5" stroke="#00C9FF" strokeWidth="1" strokeLinecap="round" opacity="0.35" />
+  </svg>
+);
+
+/* ─── 19. PAGE NUMBERS ICON (Amber/Orange Hash Grid) ─────────────────────── */
+export const PageNumbersIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="pagenum-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FFBE3D" />
+        <stop offset="100%" stopColor="#f97316" />
+      </linearGradient>
+    </defs>
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="url(#pagenum-grad)" strokeWidth="1.8" fill="none" />
+    <line x1="3" y1="15" x2="21" y2="15" stroke="url(#pagenum-grad)" strokeWidth="1.5" opacity="0.5" />
+    <text x="12" y="12.5" textAnchor="middle" fontSize="6" fontWeight="700" fill="url(#pagenum-grad)" fontFamily="monospace">123</text>
+    <text x="12" y="20" textAnchor="middle" fontSize="5" fill="#FFBE3D" fontFamily="monospace" opacity="0.9">pg</text>
+  </svg>
+);
+
+/* ─── 20. EXTRACT TEXT ICON (Green/Teal Text Lines + Arrow) ─────────────── */
+export const ExtractTextIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="exttext-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14F195" />
+        <stop offset="100%" stopColor="#10b981" />
+      </linearGradient>
+    </defs>
+    <rect x="3" y="3" width="13" height="18" rx="2" stroke="url(#exttext-grad)" strokeWidth="1.8" fill="none" opacity="0.7" />
+    <line x1="6" y1="8"  x2="13" y2="8"  stroke="#14F195" strokeWidth="1.8" strokeLinecap="round" />
+    <line x1="6" y1="11" x2="13" y2="11" stroke="#14F195" strokeWidth="1.8" strokeLinecap="round" />
+    <line x1="6" y1="14" x2="10" y2="14" stroke="#14F195" strokeWidth="1.8" strokeLinecap="round" />
+    <path d="M18 13v8M15 18l3 3 3-3" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ─── 21. EXTRACT IMAGES ICON (Pink/Purple Image Frame + Arrow) ─────────── */
+export const ExtractImagesIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="extimg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FF5D73" />
+        <stop offset="100%" stopColor="#9B6DFF" />
+      </linearGradient>
+    </defs>
+    <rect x="2" y="4" width="15" height="13" rx="2" stroke="url(#extimg-grad)" strokeWidth="1.8" fill="none" />
+    <circle cx="6.5" cy="8" r="1.5" fill="#FF5D73" opacity="0.8" />
+    <path d="M2 13l4-4 3 3 2-2 4 4" stroke="url(#extimg-grad)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M19 13v8M16 18l3 3 3-3" stroke="#9B6DFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/* ─── 22. EXCEL ICON (Green Table Grid) ─────────────────────────────────── */
+export const ExcelIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="excel-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#22c55e" />
+        <stop offset="100%" stopColor="#16a34a" />
+      </linearGradient>
+    </defs>
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="url(#excel-grad)" opacity="0.2" stroke="url(#excel-grad)" strokeWidth="1.8" />
+    <line x1="3" y1="9"  x2="21" y2="9"  stroke="#22c55e" strokeWidth="1.5" opacity="0.7" />
+    <line x1="3" y1="15" x2="21" y2="15" stroke="#22c55e" strokeWidth="1.5" opacity="0.7" />
+    <line x1="10" y1="3" x2="10" y2="21" stroke="#22c55e" strokeWidth="1.5" opacity="0.7" />
+    <path d="M5.5 12.5L7.5 10.5M7.5 12.5L5.5 10.5" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" />
+    <line x1="12" y1="11.5" x2="19" y2="11.5" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+    <line x1="12" y1="13.5" x2="17" y2="13.5" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+  </svg>
+);
+
+/* ─── 23. SIGNATURE ICON (Blue/Purple Pen Curve) ────────────────────────── */
+export const SignatureIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="sig-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#4D8DFF" />
+        <stop offset="100%" stopColor="#9B6DFF" />
+      </linearGradient>
+    </defs>
+    <path d="M3 18c2-4 4-8 6-8s2 4 4 4 4-8 6-8" stroke="url(#sig-grad)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <line x1="3" y1="21" x2="21" y2="21" stroke="url(#sig-grad)" strokeWidth="1.8" strokeLinecap="round" opacity="0.5" />
+    <circle cx="19" cy="10" r="2.5" fill="url(#sig-grad)" opacity="0.3" stroke="url(#sig-grad)" strokeWidth="1.5" />
+    <path d="M18 9l2 2" stroke="#4D8DFF" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+/* ─── 24. ANNOTATE ICON (Amber/Green Speech Bubble + Highlight) ─────────── */
+export const AnnotateIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="annotate-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FFBE3D" />
+        <stop offset="100%" stopColor="#14F195" />
+      </linearGradient>
+    </defs>
+    <rect x="3" y="5" width="14" height="10" rx="2" stroke="url(#annotate-grad)" strokeWidth="1.8" fill="none" />
+    <path d="M7 18l3-3H3z" fill="#FFBE3D" opacity="0.7" />
+    <line x1="6" y1="9"  x2="14" y2="9"  stroke="#FFBE3D" strokeWidth="2" strokeLinecap="round" />
+    <line x1="6" y1="12" x2="11" y2="12" stroke="#FFBE3D" strokeWidth="2" strokeLinecap="round" />
+    <rect x="16" y="12" width="6" height="4" rx="1" fill="#14F195" opacity="0.3" stroke="#14F195" strokeWidth="1.5" />
+    <line x1="17.5" y1="14" x2="20.5" y2="14" stroke="#14F195" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);

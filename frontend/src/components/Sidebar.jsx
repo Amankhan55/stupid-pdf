@@ -15,7 +15,15 @@ import {
   ImageToPdfIcon,
   WordToPdfIcon,
   PdfToWordIcon,
-  UnlockIcon
+  UnlockIcon,
+  ProtectIcon,
+  WatermarkIcon,
+  PageNumbersIcon,
+  ExtractTextIcon,
+  ExtractImagesIcon,
+  ExcelIcon,
+  SignatureIcon,
+  AnnotateIcon,
 } from "./Icons";
 
 const HomeIcon = (props) => (
@@ -37,21 +45,59 @@ const PDF_TOOLS = [
   { id: "reverse",         icon: ReverseIcon,     label: "Reverse Order" },
   { id: "insert-blank",    icon: InsertBlankIcon, label: "Insert Blank Pages" },
   { id: "add-pdf",         icon: AddPdfIcon,      label: "Add PDF to Existing" },
-  { id: "unlock-pdf",      icon: UnlockIcon,      label: "Unlock PDF" },
+];
+
+const EDITING_TOOLS = [
+  { id: "add-watermark",   icon: WatermarkIcon,    label: "Add Watermark" },
+  { id: "add-page-numbers",icon: PageNumbersIcon,  label: "Add Page Numbers" },
+  { id: "add-signature",   icon: SignatureIcon,    label: "Add Signature" },
+  { id: "annotate-pdf",    icon: AnnotateIcon,     label: "Annotate PDF" },
+];
+
+const UTILITY_TOOLS = [
+  { id: "extract-text",    icon: ExtractTextIcon,   label: "Extract Text" },
+  { id: "extract-images",  icon: ExtractImagesIcon, label: "Extract Images" },
+];
+
+const SECURITY_TOOLS = [
+  { id: "unlock-pdf",  icon: UnlockIcon,   label: "Unlock PDF" },
+  { id: "protect-pdf", icon: ProtectIcon,  label: "Protect PDF" },
 ];
 
 const CONVERSION_TOOLS = [
   { id: "pdf-to-images",   icon: PdfToImageIcon,   label: "PDF to Images" },
   { id: "images-to-pdf",   icon: ImageToPdfIcon,   label: "Images to PDF" },
-  { id: "word-to-pdf",     icon: WordToPdfIcon,     label: "Word to PDF" },
-  { id: "pdf-to-word",     icon: PdfToWordIcon,     label: "PDF to Word" },
+  { id: "word-to-pdf",     icon: WordToPdfIcon,    label: "Word to PDF" },
+  { id: "pdf-to-word",     icon: PdfToWordIcon,    label: "PDF to Word" },
+  { id: "pdf-to-excel",    icon: ExcelIcon,        label: "PDF to Excel" },
 ];
 
-const TOOLS = [...PDF_TOOLS, ...CONVERSION_TOOLS];
+const TOOLS = [...PDF_TOOLS, ...EDITING_TOOLS, ...UTILITY_TOOLS, ...SECURITY_TOOLS, ...CONVERSION_TOOLS];
 
-export { TOOLS, PDF_TOOLS, CONVERSION_TOOLS };
+export { TOOLS, PDF_TOOLS, EDITING_TOOLS, UTILITY_TOOLS, SECURITY_TOOLS, CONVERSION_TOOLS };
 
 export default function Sidebar({ active, onSelect }) {
+  const renderSection = (label, tools, padTop = "16px") => (
+    <>
+      <div className="sidebar-section-label" style={{ paddingTop: padTop }}>{label}</div>
+      {tools.map((tool) => {
+        const Icon = tool.icon;
+        return (
+          <button
+            key={tool.id}
+            className={`sidebar-item${active === tool.id ? " active" : ""}`}
+            onClick={() => onSelect(tool.id)}
+          >
+            <span className="icon">
+              <Icon width="16" height="16" />
+            </span>
+            <span>{tool.label}</span>
+          </button>
+        );
+      })}
+    </>
+  );
+
   return (
     <aside className="sidebar">
       <nav className="sidebar-nav">
@@ -67,41 +113,11 @@ export default function Sidebar({ active, onSelect }) {
           <span>Home Dashboard</span>
         </button>
 
-        {/* PDF Processing Section */}
-        <div className="sidebar-section-label" style={{ paddingTop: "0" }}>PDF Processing</div>
-        {PDF_TOOLS.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <button
-              key={tool.id}
-              className={`sidebar-item${active === tool.id ? " active" : ""}`}
-              onClick={() => onSelect(tool.id)}
-            >
-              <span className="icon">
-                <Icon width="16" height="16" />
-              </span>
-              <span>{tool.label}</span>
-            </button>
-          );
-        })}
-
-        {/* PDF Conversion Section */}
-        <div className="sidebar-section-label" style={{ paddingTop: "16px" }}>PDF Conversion</div>
-        {CONVERSION_TOOLS.map((tool) => {
-          const Icon = tool.icon;
-          return (
-            <button
-              key={tool.id}
-              className={`sidebar-item${active === tool.id ? " active" : ""}`}
-              onClick={() => onSelect(tool.id)}
-            >
-              <span className="icon">
-                <Icon width="16" height="16" />
-              </span>
-              <span>{tool.label}</span>
-            </button>
-          );
-        })}
+        {renderSection("PDF Processing", PDF_TOOLS, "0")}
+        {renderSection("PDF Editing", EDITING_TOOLS)}
+        {renderSection("Utilities", UTILITY_TOOLS)}
+        {renderSection("Security", SECURITY_TOOLS)}
+        {renderSection("PDF Conversion", CONVERSION_TOOLS)}
       </nav>
     </aside>
   );

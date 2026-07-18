@@ -1,4 +1,5 @@
 import io
+import json
 import zipfile
 from typing import List, Optional
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
@@ -28,6 +29,20 @@ def _zip_response(pdf_list: List[bytes], base_filename: str = "split") -> Stream
         zip_buffer,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{base_filename}.zip"'},
+    )
+
+
+def _zip_files_response(files_list: List[tuple], zip_name: str) -> StreamingResponse:
+    """Return multiple files of any type packed in a ZIP."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, data in files_list:
+            zf.writestr(name, data)
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
     )
 
 
@@ -237,20 +252,6 @@ async def add_pdf(
 
 # ─── PDF Conversions ──────────────────────────────────────────────────────────
 
-def _zip_files_response(files_list: List[tuple], zip_name: str) -> StreamingResponse:
-    """Return multiple files of any type packed in a ZIP."""
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for name, data in files_list:
-            zf.writestr(name, data)
-    zip_buffer.seek(0)
-    return StreamingResponse(
-        zip_buffer,
-        media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
-    )
-
-
 @router.post("/pdf-to-images")
 async def pdf_to_images_route(
     file: UploadFile = File(...),
@@ -317,3 +318,151 @@ async def unlock_pdf_route(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ─── NEW ROUTES ────────────────────────────────────────────────────────────────
+
+
+@router.post("/protect-pdf")
+async def protect_pdf_route(
+    file: UploadFile = File(...),
+    password: str = Form(...),
+):
+    """Encrypt a PDF with AES-256 password protection."""
+    if not password or not password.strip():
+        raise HTTPException(status_code=400, detail="Password cannot be empty.")
+    try:
+        pdf_bytes = await file.read()
+        result = pdf_service.protect_pdf(pdf_bytes, password)
+        return _pdf_response(result, "protected.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/add-watermark")
+async def add_watermark_route(
+    file: UploadFile = File(...),
+    text: str = Form("CONFIDENTIAL"),
+    opacity: float = Form(0.3),
+    angle: float = Form(45.0),
+    font_size: int = Form(48),
+    color: str = Form("808080"),  # hex without #
+):
+    """Overlay a text watermark on every page of a PDF."""
+    try:
+        pdf_bytes = await file.read()
+        # Parse hex color to RGB tuple
+        hex_c = color.lstrip("#")
+        if len(hex_c) == 3:
+            hex_c = "".join(c * 2 for c in hex_c)
+        rgb = (int(hex_c[0:2], 16) / 255, int(hex_c[2:4], 16) / 255, int(hex_c[4:6], 16) / 255)
+        result = pdf_service.add_watermark(pdf_bytes, text, opacity, angle, font_size, rgb)
+        return _pdf_response(result, "watermarked.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/add-page-numbers")
+async def add_page_numbers_route(
+    file: UploadFile = File(...),
+    position: str = Form("bottom-center"),
+    font_size: int = Form(10),
+    start_number: int = Form(1),
+    prefix: str = Form("Page"),
+):
+    """Stamp page numbers onto every page of a PDF."""
+    valid_positions = {
+        "bottom-center", "bottom-left", "bottom-right",
+        "top-center", "top-left", "top-right"
+    }
+    if position not in valid_positions:
+        raise HTTPException(status_code=400, detail=f"position must be one of {valid_positions}")
+    try:
+        pdf_bytes = await file.read()
+        result = pdf_service.add_page_numbers(pdf_bytes, position, font_size, start_number, prefix)
+        return _pdf_response(result, "numbered.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/extract-text")
+async def extract_text_route(file: UploadFile = File(...)):
+    """Extract all text from a PDF and return as a .txt file."""
+    try:
+        pdf_bytes = await file.read()
+        text = pdf_service.extract_text(pdf_bytes)
+        return StreamingResponse(
+            io.BytesIO(text.encode("utf-8")),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="extracted_text.txt"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/extract-images")
+async def extract_images_route(file: UploadFile = File(...)):
+    """Extract all embedded images from a PDF and return as a ZIP."""
+    try:
+        pdf_bytes = await file.read()
+        images = pdf_service.extract_images_from_pdf(pdf_bytes)
+        return _zip_files_response(images, "extracted_images.zip")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pdf-to-excel")
+async def pdf_to_excel_route(file: UploadFile = File(...)):
+    """Extract tables from a PDF and return as an .xlsx file."""
+    try:
+        pdf_bytes = await file.read()
+        result = pdf_service.pdf_to_excel(pdf_bytes)
+        return StreamingResponse(
+            io.BytesIO(result),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": 'attachment; filename="extracted_tables.xlsx"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/add-signature")
+async def add_signature_route(
+    file: UploadFile = File(...),
+    signature: UploadFile = File(...),
+    page_num: int = Form(1),
+    x: float = Form(100.0),
+    y: float = Form(650.0),
+    width: float = Form(200.0),
+    height: float = Form(80.0),
+):
+    """Embed a signature image onto a specific page of a PDF."""
+    try:
+        pdf_bytes = await file.read()
+        sig_bytes = await signature.read()
+        result = pdf_service.add_signature(pdf_bytes, sig_bytes, page_num, x, y, width, height)
+        return _pdf_response(result, "signed.pdf")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/annotate-pdf")
+async def annotate_pdf_route(
+    file: UploadFile = File(...),
+    annotations: str = Form(...),  # JSON string
+):
+    """Add text box or highlight annotations to a PDF."""
+    try:
+        ann_list = json.loads(annotations)
+        if not isinstance(ann_list, list):
+            raise HTTPException(status_code=400, detail="annotations must be a JSON array.")
+        pdf_bytes = await file.read()
+        result = pdf_service.annotate_pdf(pdf_bytes, ann_list)
+        return _pdf_response(result, "annotated.pdf")
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in annotations field.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

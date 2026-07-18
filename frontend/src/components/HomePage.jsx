@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { PDF_TOOLS, CONVERSION_TOOLS } from "./Sidebar";
+import { PDF_TOOLS, EDITING_TOOLS, UTILITY_TOOLS, SECURITY_TOOLS, CONVERSION_TOOLS } from "./Sidebar";
 import {
   UploadCloudIcon,
   FileIcon,
@@ -59,17 +59,23 @@ export default function HomePage({ onSelect }) {
 
   // Helper to categorize tools
   const getToolCategory = (id) => {
-    if (["pdf-to-images", "images-to-pdf", "word-to-pdf", "pdf-to-word"].includes(id)) {
+    if (["pdf-to-images", "images-to-pdf", "word-to-pdf", "pdf-to-word", "pdf-to-excel"].includes(id)) {
       return "conversion";
     }
     if (["unlock-pdf", "protect-pdf"].includes(id)) {
       return "security";
     }
+    if (["add-watermark", "add-page-numbers", "add-signature", "annotate-pdf"].includes(id)) {
+      return "editing";
+    }
+    if (["extract-text", "extract-images"].includes(id)) {
+      return "utility";
+    }
     return "processing";
   };
 
   // Combine all tools into a single list
-  const allTools = [...PDF_TOOLS, ...CONVERSION_TOOLS];
+  const allTools = [...PDF_TOOLS, ...EDITING_TOOLS, ...UTILITY_TOOLS, ...SECURITY_TOOLS, ...CONVERSION_TOOLS];
 
   // Filter tools based on search query and category
   const filteredTools = allTools.filter((tool) => {
@@ -306,8 +312,10 @@ export default function HomePage({ onSelect }) {
           <div className="category-pills">
             {[
               { id: "all", label: "All Tools" },
-              { id: "processing", label: "PDF Processing" },
-              { id: "conversion", label: "PDF Conversion" },
+              { id: "processing", label: "Processing" },
+              { id: "editing", label: "Editing" },
+              { id: "utility", label: "Utilities" },
+              { id: "conversion", label: "Conversion" },
               { id: "security", label: "Security" },
             ].map((cat) => (
               <button
@@ -516,6 +524,14 @@ function getToolDescription(id) {
     "word-to-pdf": "Convert Word docx files into styled PDF format.",
     "pdf-to-word": "Convert PDFs back into editable Word docx files.",
     "unlock-pdf": "Remove password protection from encrypted PDFs.",
+    "protect-pdf": "Encrypt your PDF with AES-256 password protection.",
+    "add-watermark": "Overlay custom diagonal text watermark on every page.",
+    "add-page-numbers": "Auto-stamp page numbers at header or footer position.",
+    "extract-text": "Pull all readable text and download as a .txt file.",
+    "extract-images": "Extract all embedded images into a ZIP archive.",
+    "pdf-to-excel": "Extract tables from PDF into an editable .xlsx spreadsheet.",
+    "add-signature": "Draw or upload a signature and embed it on any page.",
+    "annotate-pdf": "Add text boxes and highlight overlays to any page area.",
   };
   return descriptions[id] || "Fast, stateless browser processing.";
 }
