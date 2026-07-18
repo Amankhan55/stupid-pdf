@@ -398,30 +398,54 @@ def add_watermark(
     """
     Overlay diagonal text watermark on every page of a PDF.
     opacity: 0.0 (invisible) to 1.0 (opaque)
-    angle: rotation angle in degrees
+    angle: rotation angle in degrees (any value, not just multiples of 90)
     color: RGB tuple, each 0.0–1.0
+
+    Uses fitz.TextWriter + rotation matrix instead of insert_text(rotate=...)
+    because insert_text only accepts 0, 90, 180, 270 for the rotate parameter.
     """
     import fitz
+    import math
+
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     for page in doc:
         rect = page.rect
-        # Center of the page
-        cx, cy = rect.width / 2, rect.height / 2
+        cx = rect.width / 2
+        cy = rect.height / 2
 
-        page.insert_text(
-            fitz.Point(cx - len(text) * font_size * 0.28, cy),
-            text,
-            fontsize=font_size,
-            color=color,
-            rotate=angle,
-            overlay=True,
-            fill_opacity=opacity,
-        )
+        # Build the text writer and measure the text bounding box at origin
+        tw_measure = fitz.TextWriter(rect)
+        font = fitz.Font("helv")
+        tw_measure.append((0, 0), text, font=font, fontsize=font_size)
+        text_rect = tw_measure.text_rect
+        tw_w = text_rect.width
+        tw_h = abs(text_rect.height)
+
+        # Place baseline origin so the text block is visually centered on the page
+        # In PyMuPDF, y increases downward; text baseline is at the y coordinate given.
+        origin_x = cx - tw_w / 2
+        origin_y = cy + tw_h / 4  # slight upward shift to visually center
+
+        # Build the real TextWriter with opacity
+        tw = fitz.TextWriter(rect)
+        tw.append((origin_x, origin_y), text, font=font, fontsize=font_size)
+
+        # Build a rotation matrix for arbitrary angle around the page center
+        rad = math.radians(angle)
+        cos_a = math.cos(rad)
+        sin_a = math.sin(rad)
+        rot_matrix = fitz.Matrix(cos_a, sin_a, -sin_a, cos_a, 0, 0)
+
+        # write_text with morph=(pivot, matrix) rotates text around pivot.
+        # color and opacity are valid kwargs on write_text, NOT on append().
+        tw.write_text(page, color=color, opacity=opacity, morph=(fitz.Point(cx, cy), rot_matrix))
+
 
     output = io.BytesIO()
     doc.save(output)
     return output.getvalue()
+
 
 
 def add_page_numbers(
