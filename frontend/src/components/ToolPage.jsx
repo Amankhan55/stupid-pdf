@@ -227,6 +227,154 @@ function SignatureCanvas({ onCapture }) {
     </div>
   );
 }
+// ─── Signature Position Preview ───────────────────────────────────────────────
+const PDF_W = 595; // A4 in points
+const PDF_H = 842;
+
+function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
+  const wrapRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const dragOffsetRef = useRef({ dx: 0, dy: 0 });
+  const [sigUrl, setSigUrl] = useState(null);
+  const [livePos, setLivePos] = useState({ x, y });
+
+  // Keep livePos in sync when parent state changes via number inputs
+  useEffect(() => { setLivePos({ x, y }); }, [x, y]);
+
+  // Create an object URL for the signature file to preview it
+  useEffect(() => {
+    if (!sigFile) { setSigUrl(null); return; }
+    const url = URL.createObjectURL(sigFile);
+    setSigUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [sigFile]);
+
+  // Convert client coordinates → PDF points using the wrapper's bounding rect
+  function clientToPdf(e) {
+    const rect = wrapRef.current.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return {
+      x: ((src.clientX - rect.left)  / rect.width)  * PDF_W,
+      y: ((src.clientY - rect.top)   / rect.height) * PDF_H,
+    };
+  }
+
+  function clamp(val, max) {
+    return Math.round(Math.max(0, Math.min(val, max)));
+  }
+
+  // Click on the page background → centre signature on click point
+  function handlePageClick(e) {
+    if (isDraggingRef.current) return;
+    const pos  = clientToPdf(e);
+    const newX = clamp(pos.x - width  / 2, PDF_W - width);
+    const newY = clamp(pos.y - height / 2, PDF_H - height);
+    setLivePos({ x: newX, y: newY });
+    onChange(newX, newY);
+  }
+
+  // Start dragging the signature box
+  function handleSigMouseDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const pos = clientToPdf(e);
+    dragOffsetRef.current = { dx: pos.x - livePos.x, dy: pos.y - livePos.y };
+    isDraggingRef.current = true;
+  }
+
+  // Move handler on the whole page area
+  function handleMouseMove(e) {
+    if (!isDraggingRef.current) return;
+    const pos  = clientToPdf(e);
+    const newX = clamp(pos.x - dragOffsetRef.current.dx, PDF_W - width);
+    const newY = clamp(pos.y - dragOffsetRef.current.dy, PDF_H - height);
+    setLivePos({ x: newX, y: newY }); // update preview immediately (no re-render lag)
+  }
+
+  // Stop drag → commit to parent
+  function handleMouseUp() {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    onChange(livePos.x, livePos.y);
+  }
+
+  const pctX = (livePos.x / PDF_W) * 100;
+  const pctY = (livePos.y / PDF_H) * 100;
+  const pctW = (width     / PDF_W) * 100;
+  const pctH = (height    / PDF_H) * 100;
+
+  return (
+    <div className="sig-pos-preview-wrapper">
+      {/* Header row */}
+      <div className="sig-pos-preview-header">
+        <span className="sig-pos-preview-label">📄 Click on page to place · Drag to reposition</span>
+        <span className="sig-coords-live-badge">
+          <span className="coords-axis">X</span>{Math.round(livePos.x)}
+          <span className="coords-sep">·</span>
+          <span className="coords-axis">Y</span>{Math.round(livePos.y)}
+        </span>
+      </div>
+
+      {/* Page preview — aspect-ratio trick keeps A4 shape at any width */}
+      <div className="sig-page-outer">
+        <div
+          ref={wrapRef}
+          className="sig-page-inner"
+          style={{ paddingTop: `${(PDF_H / PDF_W) * 100}%` }}
+          onClick={handlePageClick}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchMove={(e) => { e.preventDefault(); handleMouseMove(e); }}
+          onTouchEnd={handleMouseUp}
+        >
+          <div className="sig-page-content">
+            {/* Subtle page line guides */}
+            <div className="sig-page-lines">
+              <div className="sig-line sig-line-h" style={{ top: '10%' }} />
+              <div className="sig-line sig-line-h" style={{ top: '90%' }} />
+              <div className="sig-line sig-line-v" style={{ left: '7%' }} />
+              <div className="sig-line sig-line-v" style={{ left: '93%' }} />
+            </div>
+
+            {/* Signature placement box */}
+            <div
+              className="sig-drop-box"
+              style={{
+                left:   `${pctX}%`,
+                top:    `${pctY}%`,
+                width:  `${pctW}%`,
+                height: `${pctH}%`,
+              }}
+              onMouseDown={handleSigMouseDown}
+              onTouchStart={handleSigMouseDown}
+            >
+              {sigUrl ? (
+                <img
+                  src={sigUrl}
+                  alt="Signature"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', display: 'block' }}
+                />
+              ) : (
+                <div className="sig-drop-placeholder">
+                  <span>✍</span>
+                </div>
+              )}
+              {/* Drag handle indicator */}
+              <div className="sig-drag-handle" title="Drag to move">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" opacity="0.6">
+                  <circle cx="2" cy="2" r="1"/><circle cx="5" cy="2" r="1"/><circle cx="8" cy="2" r="1"/>
+                  <circle cx="2" cy="5" r="1"/><circle cx="5" cy="5" r="1"/><circle cx="8" cy="5" r="1"/>
+                  <circle cx="2" cy="8" r="1"/><circle cx="5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
 const TOOL_META = {
@@ -738,19 +886,36 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
                   label="Drop signature image here (PNG/JPG)" showInfo={false} accept="image/*" />
               )}
             </div>
+
             <div className="form-group">
               <label>Page Number</label>
               <input className="form-input" type="number" min="1" value={sigPageNum} onChange={(e) => setSigPageNum(parseInt(e.target.value) || 1)} />
             </div>
+
+            {/* ── Live position preview ── */}
             <div className="form-group">
-              <label>Position & Size (in PDF points)</label>
+              <label>Signature Position</label>
+              <SignaturePositionPreview
+                sigFile={sigFile}
+                x={sigX}
+                y={sigY}
+                width={sigWidth}
+                height={sigHeight}
+                onChange={(nx, ny) => { setSigX(nx); setSigY(ny); }}
+              />
+            </div>
+
+            {/* ── Fine-tune size + position as numbers ── */}
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Fine-tune Position &amp; Size <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>(PDF points · A4 = 595×842)</span></span>
+              </label>
               <div className="sig-pos-grid">
-                <div><span className="form-hint">X (left)</span><input className="form-input" type="number" value={sigX} onChange={(e) => setSigX(parseFloat(e.target.value))} /></div>
-                <div><span className="form-hint">Y (top)</span><input className="form-input" type="number" value={sigY} onChange={(e) => setSigY(parseFloat(e.target.value))} /></div>
-                <div><span className="form-hint">Width</span><input className="form-input" type="number" value={sigWidth} onChange={(e) => setSigWidth(parseFloat(e.target.value))} /></div>
-                <div><span className="form-hint">Height</span><input className="form-input" type="number" value={sigHeight} onChange={(e) => setSigHeight(parseFloat(e.target.value))} /></div>
+                <div><span className="form-hint">X (left)</span><input className="form-input" type="number" value={sigX} onChange={(e) => setSigX(parseFloat(e.target.value) || 0)} /></div>
+                <div><span className="form-hint">Y (top)</span><input className="form-input" type="number" value={sigY} onChange={(e) => setSigY(parseFloat(e.target.value) || 0)} /></div>
+                <div><span className="form-hint">Width</span><input className="form-input" type="number" value={sigWidth} onChange={(e) => setSigWidth(parseFloat(e.target.value) || 100)} /></div>
+                <div><span className="form-hint">Height</span><input className="form-input" type="number" value={sigHeight} onChange={(e) => setSigHeight(parseFloat(e.target.value) || 40)} /></div>
               </div>
-              <span className="form-hint">A standard A4 page is 595 × 842 points. Y=650 is near the bottom.</span>
             </div>
           </>
         );

@@ -2315,3 +2315,156 @@ select.form-input {
   box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12) !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIGNATURE POSITION PREVIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sig-pos-preview-wrapper {
+  margin-top: 10px;
+}
+
+.sig-pos-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.sig-pos-preview-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Live X · Y badge — updates as user drags */
+.sig-coords-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(20, 241, 149, 0.08);
+  border: 1px solid rgba(20, 241, 149, 0.25);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--accent-primary);
+  letter-spacing: 0.02em;
+  transition: background 0.15s;
+}
+
+.coords-axis {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(20, 241, 149, 0.6);
+  margin-right: 1px;
+}
+
+.coords-sep {
+  color: rgba(20, 241, 149, 0.35);
+  font-weight: 400;
+  margin: 0 2px;
+}
+
+/* Outer wrapper — constrains the page preview to a readable width */
+.sig-page-outer {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* The aspect-ratio container — padding-top = (842/595)*100% ≈ 141.5% */
+.sig-page-inner {
+  position: relative;
+  width: 100%;
+  background: #1a1f2e;
+  cursor: crosshair;
+  user-select: none;
+}
+
+/* Absolute overlay that fills the aspect-ratio box */
+.sig-page-content {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Subtle page margin guide lines */
+.sig-page-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sig-line {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sig-line-h {
+  left: 0; right: 0;
+  height: 1px;
+}
+
+.sig-line-v {
+  top: 0; bottom: 0;
+  width: 1px;
+}
+
+/* The draggable signature box on the preview */
+.sig-drop-box {
+  position: absolute;
+  border: 1.5px solid rgba(20, 241, 149, 0.7);
+  border-radius: 3px;
+  background: rgba(20, 241, 149, 0.07);
+  cursor: grab;
+  box-shadow: 0 0 12px rgba(20, 241, 149, 0.15), inset 0 0 8px rgba(20, 241, 149, 0.04);
+  transition: box-shadow 0.15s, border-color 0.15s;
+  overflow: hidden;
+}
+
+.sig-drop-box:hover {
+  border-color: #14F195;
+  box-shadow: 0 0 20px rgba(20, 241, 149, 0.3), inset 0 0 12px rgba(20, 241, 149, 0.06);
+}
+
+.sig-drop-box:active {
+  cursor: grabbing;
+  border-color: #00ffbb;
+  box-shadow: 0 0 24px rgba(20, 241, 149, 0.5);
+}
+
+/* Placeholder shown when no signature file yet */
+.sig-drop-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(10px, 2vw, 22px);
+  color: rgba(20, 241, 149, 0.5);
+  pointer-events: none;
+}
+
+/* 3×3 dot drag handle in the top-right corner of the signature box */
+.sig-drag-handle {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  color: #14F195;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.sig-drop-box:hover .sig-drag-handle {
+  opacity: 1;
+}
+
