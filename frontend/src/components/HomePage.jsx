@@ -359,18 +359,30 @@ export default function HomePage({ onSelect }) {
           {filteredTools.map((tool) => {
             const Icon = tool.icon;
             const category = getToolCategory(tool.id);
+            const isSoon = tool.comingSoon || ["annotate-pdf", "pdf-to-excel"].includes(tool.id);
+
             return (
               <div
                 key={tool.id}
-                className="tool-card-luxury"
+                className={`tool-card-luxury${isSoon ? " card-coming-soon disabled" : ""}`}
                 data-category={category}
-                onClick={() => onSelect(tool.id, heroFile)}
+                style={isSoon ? { cursor: "not-allowed", opacity: 0.65 } : {}}
+                onClick={() => {
+                  if (!isSoon) {
+                    onSelect(tool.id, heroFile);
+                  }
+                }}
               >
                 <div>
                   <div className="tool-card-top">
                     <div className="card-icon-square">
                       <Icon width="24" height="24" />
                     </div>
+                    {isSoon && (
+                      <span className="badge-coming-soon">
+                        ✨ Coming Soon
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="card-title-text">{tool.label}</h3>
@@ -381,12 +393,16 @@ export default function HomePage({ onSelect }) {
                   <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                     {category}
                   </span>
-                  <div className="action-arrow-circle">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                      <polyline points="12 5 19 12 12 19" />
-                    </svg>
-                  </div>
+                  {isSoon ? (
+                    <span className="card-soon-text">Under Polish</span>
+                  ) : (
+                    <div className="action-arrow-circle">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -727,9 +727,9 @@ const TOOL_META = {
   "add-page-numbers": { icon: PageNumbersIcon,   title: "Add Page Numbers",    desc: "Automatically stamp page numbers at the header or footer of every page.",                           tag: "Editing" },
   "extract-text":     { icon: ExtractTextIcon,   title: "Extract Text",        desc: "Pull all readable text from your PDF and download it as a .txt file.",                              tag: "Utility" },
   "extract-images":   { icon: ExtractImagesIcon, title: "Extract Images",      desc: "Extract all embedded images from your PDF and download them as a ZIP archive.",                     tag: "Utility" },
-  "pdf-to-excel":     { icon: ExcelIcon,         title: "PDF to Excel",        desc: "Extract tables from your PDF and convert them to an editable .xlsx spreadsheet.",                   tag: "Convert" },
+  "pdf-to-excel":     { icon: ExcelIcon,         title: "PDF to Excel",        desc: "Extract tables from your PDF and convert them to an editable .xlsx spreadsheet.",                   tag: "Convert", comingSoon: true },
   "add-signature":    { icon: SignatureIcon,     title: "Add Signature",       desc: "Draw or upload a signature and embed it onto a specific page of your PDF.",                        tag: "Editing" },
-  "annotate-pdf":     { icon: AnnotateIcon,      title: "Annotate PDF",        desc: "Add text annotations and highlight color overlays to specific areas of your PDF.",                  tag: "Editing" },
+  "annotate-pdf":     { icon: AnnotateIcon,      title: "Annotate PDF",        desc: "Add text annotations and highlight color overlays to specific areas of your PDF.",                  tag: "Editing", comingSoon: true },
 };
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
@@ -1365,6 +1365,18 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
       </div>
 
       <div className="card">
+        {meta.comingSoon && (
+          <div className="coming-soon-banner">
+            <div className="coming-soon-banner-icon">✨</div>
+            <div>
+              <div className="coming-soon-banner-title">Feature Coming Soon</div>
+              <div className="coming-soon-banner-desc">
+                <strong>{meta.title}</strong> is currently undergoing final polish and testing to ensure maximum reliability and accuracy. Stay tuned!
+              </div>
+            </div>
+          </div>
+        )}
+
         <FileUpload
           multiple={toolId === "merge" || toolId === "images-to-pdf"}
           files={files}
@@ -1401,6 +1413,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
               placeholder={`e.g. my-document  (saves as my-document${outputExt})`}
               value={outputFilename} onChange={(e) => setOutputFilename(e.target.value)}
               style={{ paddingRight: "80px" }}
+              disabled={meta.comingSoon}
             />
             {outputFilename.trim() && (
               <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }}>
@@ -1423,9 +1436,11 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           </span>
           <div style={{ display: "flex", gap: "10px" }}>
             <button className="btn btn-secondary" onClick={resetState}>Reset</button>
-            <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={!canSubmit}>
+            <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={!canSubmit || meta.comingSoon}>
               {status === "loading" ? (
                 <><span className="spinner" /> Processing…</>
+              ) : meta.comingSoon ? (
+                <span>✨ Coming Soon</span>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   {Icon && <Icon width="16" height="16" />}

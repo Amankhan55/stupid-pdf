@@ -51,7 +51,7 @@ const EDITING_TOOLS = [
   { id: "add-watermark",   icon: WatermarkIcon,    label: "Add Watermark" },
   { id: "add-page-numbers",icon: PageNumbersIcon,  label: "Add Page Numbers" },
   { id: "add-signature",   icon: SignatureIcon,    label: "Add Signature" },
-  { id: "annotate-pdf",    icon: AnnotateIcon,     label: "Annotate PDF" },
+  { id: "annotate-pdf",    icon: AnnotateIcon,     label: "Annotate PDF", comingSoon: true },
 ];
 
 const UTILITY_TOOLS = [
@@ -69,7 +69,7 @@ const CONVERSION_TOOLS = [
   { id: "images-to-pdf",   icon: ImageToPdfIcon,   label: "Images to PDF" },
   { id: "word-to-pdf",     icon: WordToPdfIcon,    label: "Word to PDF" },
   { id: "pdf-to-word",     icon: PdfToWordIcon,    label: "PDF to Word" },
-  { id: "pdf-to-excel",    icon: ExcelIcon,        label: "PDF to Excel" },
+  { id: "pdf-to-excel",    icon: ExcelIcon,        label: "PDF to Excel", comingSoon: true },
 ];
 
 const TOOLS = [...PDF_TOOLS, ...EDITING_TOOLS, ...UTILITY_TOOLS, ...SECURITY_TOOLS, ...CONVERSION_TOOLS];
@@ -85,13 +85,16 @@ export default function Sidebar({ active, onSelect }) {
         return (
           <button
             key={tool.id}
-            className={`sidebar-item${active === tool.id ? " active" : ""}`}
-            onClick={() => onSelect(tool.id)}
+            className={`sidebar-item${active === tool.id ? " active" : ""}${tool.comingSoon ? " disabled" : ""}`}
+            disabled={tool.comingSoon}
+            onClick={() => !tool.comingSoon && onSelect(tool.id)}
+            style={tool.comingSoon ? { opacity: 0.5, cursor: "not-allowed" } : {}}
           >
             <span className="icon">
               <Icon width="16" height="16" />
             </span>
             <span>{tool.label}</span>
+            {tool.comingSoon && <span className="sidebar-soon-pill">Soon</span>}
           </button>
         );
       })}
