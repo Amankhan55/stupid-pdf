@@ -2813,5 +2813,62 @@ select.form-input {
   line-height: 1.5;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   FILE UPLOAD RESTRICTION & VALIDATION STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.upload-zone-error {
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  background: rgba(244, 63, 94, 0.04) !important;
+}
+
+.upload-limit-text {
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  margin-top: 8px !important;
+}
+
+.upload-limit-text strong {
+  color: var(--text-secondary);
+}
+
+.upload-error-pill {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #fb7185;
+  font-size: 13px;
+  font-weight: 600;
+  animation: shakePill 0.3s ease-in-out;
+}
+
+@keyframes shakePill {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+.upload-error-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #fb7185;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 0 4px;
+}
+
+.upload-error-dismiss:hover {
+  opacity: 1;
+}
+
+
 
 

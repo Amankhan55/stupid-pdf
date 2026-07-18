@@ -36,8 +36,10 @@ import {
   SignatureIcon, AnnotateIcon,
 } from "./Icons";
 import * as pdfjsLib from "pdfjs-dist";
+import { TOOL_RESTRICTIONS, validateFiles } from "../utils/fileValidation";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+
 
 
 // ─── Drag-to-Rearrange list ────────────────────────────────────────────────────
@@ -1060,7 +1062,14 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           <>
             <div className="form-group">
               <label>PDF to Insert</label>
-              <FileUpload multiple={false} files={files2} setFiles={setFiles2} label="Drop the PDF to insert here" showInfo={false} />
+              <FileUpload
+                multiple={false}
+                files={files2}
+                setFiles={setFiles2}
+                label="Drop the PDF to insert here"
+                showInfo={false}
+                restriction={TOOL_RESTRICTIONS["add-pdf"]}
+              />
             </div>
             <div className="form-group">
               <label>Insert at Page Position</label>
@@ -1211,9 +1220,15 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
               {sigMode === "draw" ? (
                 <SignatureCanvas onCapture={(f) => setSigFile(f)} />
               ) : (
-                <FileUpload multiple={false} files={sigFile ? [sigFile] : []}
+                <FileUpload
+                  multiple={false}
+                  files={sigFile ? [sigFile] : []}
                   setFiles={(arr) => setSigFile(arr[0] || null)}
-                  label="Drop signature image here (PNG/JPG)" showInfo={false} accept="image/*" />
+                  label="Drop signature image here (PNG/JPG/WEBP)"
+                  showInfo={false}
+                  accept="image/*"
+                  restriction={TOOL_RESTRICTIONS["add-signature"]?.signatureImage}
+                />
               )}
             </div>
 
@@ -1383,17 +1398,18 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
           label={
             toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
-            : toolId === "images-to-pdf" ? "Drop one or more images here (PNG/JPG)"
+            : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
             : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
             : toolId === "add-pdf" ? "Drop the base PDF here"
-            : "Drop your PDF here"
+            : "Drop your PDF file here"
           }
           showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
           accept={
-            toolId === "images-to-pdf" ? "image/*"
-            : toolId === "word-to-pdf" ? ".docx"
+            toolId === "images-to-pdf" ? "image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
+            : toolId === "word-to-pdf" ? ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             : "application/pdf"
           }
+          restriction={TOOL_RESTRICTIONS[toolId]}
         />
 
         {renderControls()}

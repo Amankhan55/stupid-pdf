@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { TOOL_RESTRICTIONS, validateFiles } from "../utils/fileValidation";
 
 export default function Navbar({ activeTool = "home", onSelectTool }) {
   const fileInputRef = useRef(null);
@@ -8,15 +9,26 @@ export default function Navbar({ activeTool = "home", onSelectTool }) {
     if (files.length === 0) return;
 
     if (files.length > 1) {
-      // Multiple files selected -> open Merge tool
+      // Multiple files selected -> validate for Merge tool
+      const check = validateFiles(files, TOOL_RESTRICTIONS["merge"]);
+      if (!check.valid) {
+        alert(check.error);
+        e.target.value = "";
+        return;
+      }
       if (onSelectTool) onSelectTool("merge", files);
     } else {
-      // Single file selected -> open active tool (if not home) or compress tool
+      // Single file selected -> validate for active tool or compress tool
       const targetTool = (activeTool && activeTool !== "home") ? activeTool : "compress";
+      const check = validateFiles(files[0], TOOL_RESTRICTIONS[targetTool] || TOOL_RESTRICTIONS["compress"]);
+      if (!check.valid) {
+        alert(check.error);
+        e.target.value = "";
+        return;
+      }
       if (onSelectTool) onSelectTool(targetTool, files[0]);
     }
 
-    // Reset input value so re-selecting the same file works
     e.target.value = "";
   };
 
