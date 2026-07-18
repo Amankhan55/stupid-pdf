@@ -46,12 +46,36 @@ def _zip_files_response(files_list: List[tuple], zip_name: str) -> StreamingResp
     )
 
 
+MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024       # 50 MB
+MAX_DOCX_SIZE_BYTES = 20 * 1024 * 1024      # 20 MB
+MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024     # 15 MB
+MAX_MERGE_FILE_SIZE = 25 * 1024 * 1024      # 25 MB
+
+def validate_file_bytes(file_bytes: bytes, filename: str, max_size: int = MAX_PDF_SIZE_BYTES, allowed_exts: list = ["pdf"]):
+    """Validate file size and extension on backend."""
+    if len(file_bytes) > max_size:
+        max_mb = int(max_size / (1024 * 1024))
+        size_mb = len(file_bytes) / (1024 * 1024)
+        raise HTTPException(
+            status_code=400,
+            detail=f'File "{filename}" ({size_mb:.1f} MB) exceeds maximum limit of {max_mb} MB.'
+        )
+    ext = filename.split(".")[-1].lower() if filename and "." in filename else ""
+    if allowed_exts and ext not in allowed_exts:
+        exts_str = ", ".join([f".{e}" for e in allowed_exts])
+        raise HTTPException(
+            status_code=400,
+            detail=f'Invalid file format for "{filename}". Allowed formats: {exts_str}.'
+        )
+
+
 # ─── Info ──────────────────────────────────────────────────────────────────────
 
 @router.post("/info")
 async def get_info(file: UploadFile = File(...)):
     """Return page count and dimensions for a PDF."""
     data = await file.read()
+    validate_file_bytes(data, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
         info = pdf_service.get_pdf_info(data)
         return info
@@ -64,9 +88,15 @@ async def get_info(file: UploadFile = File(...)):
 @router.post("/merge")
 async def merge(files: List[UploadFile] = File(...)):
     if len(files) < 2:
-        raise HTTPException(status_code=400, detail="At least 2 PDF files are required.")
+        raise HTTPException(status_code=400, detail="At least 2 PDF files are required to merge.")
+    if len(files) > 20:
+        raise HTTPException(status_code=400, detail="Maximum 20 files allowed for PDF Merge.")
     try:
-        pdf_bytes_list = [await f.read() for f in files]
+        pdf_bytes_list = []
+        for f in files:
+            data = await f.read()
+            validate_file_bytes(data, f.filename, MAX_MERGE_FILE_SIZE, ["pdf"])
+            pdf_bytes_list.append(data)
         result = pdf_service.merge_pdfs(pdf_bytes_list)
         return _pdf_response(result, "merged.pdf")
     except Exception as e:

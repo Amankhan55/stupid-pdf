@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { getPdfInfo } from "../api/pdf";
 import { UploadCloudIcon, FileIcon } from "./Icons";
+import { validateFiles } from "../utils/fileValidation";
 
 function formatBytes(bytes) {
   if (bytes < 1024) return bytes + " B";
@@ -15,38 +16,45 @@ export default function FileUpload({
   label = "Drop your PDF here",
   showInfo = true,
   accept = "application/pdf",
+  restriction = null,
 }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [pageInfo, setPageInfo] = useState({});
+  const [errorMsg, setErrorMsg] = useState(null);
 
-  async function processFiles(newFiles) {
-    const accepted = Array.from(newFiles).filter((f) => {
-      if (accept === "application/pdf") {
-        return f.type === "application/pdf";
-      }
-      if (accept === "image/*") {
-        return f.type.startsWith("image/");
-      }
-      if (accept === ".docx") {
-        // docx mime type can vary slightly across OS (e.g. vnd.openxmlformats...)
-        return f.name.endsWith(".docx");
-      }
-      return true;
-    });
-    if (!accepted.length) return;
+  async function processFiles(incomingFiles) {
+    setErrorMsg(null);
+    const rawArray = Array.from(incomingFiles || []);
+    if (!rawArray.length) return;
 
-    const toAdd = multiple ? accepted : [accepted[0]];
+    // Perform strict validation if restriction prop is provided
+    if (restriction) {
+      const check = validateFiles(rawArray, restriction);
+      if (!check.valid) {
+        setErrorMsg(check.error);
+        return;
+      }
+    }
+
+    const toAdd = multiple ? rawArray : [rawArray[0]];
     const combined = multiple ? [...files, ...toAdd] : toAdd;
+
+    // Validate combined array length if maxFiles specified
+    if (restriction && restriction.maxFiles && combined.length > restriction.maxFiles) {
+      setErrorMsg(`Too many files! Maximum ${restriction.maxFiles} files allowed.`);
+      return;
+    }
+
     setFiles(combined);
 
-    if (showInfo && accept === "application/pdf") {
+    if (showInfo && (accept.includes("pdf") || restriction?.extensions?.includes("pdf"))) {
       for (const f of toAdd) {
         try {
           const info = await getPdfInfo(f);
           setPageInfo((prev) => ({ ...prev, [f.name]: info }));
         } catch {
-          // silently ignore if backend not running
+          // silently ignore if backend not running or non-pdf
         }
       }
     }
@@ -63,11 +71,17 @@ export default function FileUpload({
     setDragOver(true);
   }
 
-  function handleDragLeave() { setDragOver(false); }
+  function handleDragLeave() {
+    setDragOver(false);
+  }
 
-  function handleChange(e) { processFiles(e.target.files); }
+  function handleChange(e) {
+    processFiles(e.target.files);
+    e.target.value = "";
+  }
 
   function removeFile(idx) {
+    setErrorMsg(null);
     const updated = files.filter((_, i) => i !== idx);
     setFiles(updated);
   }
@@ -75,23 +89,37 @@ export default function FileUpload({
   return (
     <div>
       <div
-        className={`upload-zone${dragOver ? " drag-over" : ""}`}
+        className={`upload-zone${dragOver ? " drag-over" : ""}${errorMsg ? " upload-zone-error" : ""}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
       >
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
-          <UploadCloudIcon style={{ color: "var(--accent-start)" }} />
+          <UploadCloudIcon style={{ color: errorMsg ? "var(--accent-danger, #f43f5e)" : "var(--accent-start)" }} />
         </div>
         <h3>{label}</h3>
         <p>
-          Drag & drop {multiple ? "files" : "a file"} here, or{" "}
+          Drag &amp; drop {multiple ? "files" : "a file"} here, or{" "}
           <span>browse</span> to choose
         </p>
-        <p style={{ marginTop: "6px" }}>
-          {accept === "application/pdf" ? "PDF files only" : accept === "image/*" ? "Image files only (PNG/JPG)" : "Word documents only (.docx)"}
-        </p>
+
+        {restriction ? (
+          <p className="upload-limit-text">
+            Allowed: <strong>{restriction.label || accept}</strong>
+            {restriction.maxSizeMB && <> · Max size: <strong>{restriction.maxSizeMB} MB</strong></>}
+            {restriction.maxFiles && restriction.maxFiles > 1 && <> · Max files: <strong>{restriction.maxFiles}</strong></>}
+          </p>
+        ) : (
+          <p style={{ marginTop: "6px" }}>
+            {accept === "application/pdf"
+              ? "PDF files only"
+              : accept === "image/*"
+              ? "Image files only (PNG/JPG)"
+              : "Word documents only (.docx)"}
+          </p>
+        )}
+
         <input
           ref={inputRef}
           type="file"
@@ -101,6 +129,19 @@ export default function FileUpload({
           onChange={handleChange}
         />
       </div>
+
+      {/* ── Validation Error Banner ── */}
+      {errorMsg && (
+        <div className="upload-error-pill">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{errorMsg}</span>
+          <button type="button" onClick={() => setErrorMsg(null)} className="upload-error-dismiss">×</button>
+        </div>
+      )}
 
       {files.length > 0 && (
         <div className="file-list">
@@ -122,8 +163,12 @@ export default function FileUpload({
                   <span className="file-badge">{info.page_count}p</span>
                 )}
                 <button
+                  type="button"
                   className="remove-btn"
-                  onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeFile(idx);
+                  }}
                   title="Remove"
                 >
                   ✕
