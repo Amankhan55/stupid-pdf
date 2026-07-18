@@ -113,30 +113,47 @@ function StatusBar({ status, message }) {
 }
 
 // ─── Signature Canvas ──────────────────────────────────────────────────────────
-function SignatureCanvas({ onCapture }) {
-  const canvasRef = useRef(null);
-  const drawingRef = useRef(false);
-  const lastPosRef = useRef(null);
-  const hasContentRef = useRef(false);
+const SIG_COLORS = [
+  { hex: "#14F195", label: "Neon Green" },
+  { hex: "#000000", label: "Black" },
+  { hex: "#1a1aff", label: "Blue" },
+  { hex: "#8B0000", label: "Dark Red" },
+  { hex: "#6B21A8", label: "Purple" },
+  { hex: "#78716c", label: "Slate" },
+];
 
-  // On mount: size the canvas's internal pixel buffer to match its CSS display
-  // size × devicePixelRatio so coords are exact on all screens (Retina etc.)
+function SignatureCanvas({ onCapture }) {
+  const canvasRef      = useRef(null);
+  const drawingRef     = useRef(false);
+  const lastPosRef     = useRef(null);
+  const hasContentRef  = useRef(false);
+  const colorRef       = useRef("#000000");
+  const thicknessRef   = useRef(2);
+
+  const [color,     setColor]     = useState("#000000");
+  const [thickness, setThickness] = useState(2);
+
+  // Keep refs in sync with state so draw() always reads current values
+  useEffect(() => { colorRef.current     = color;     }, [color]);
+  useEffect(() => { thicknessRef.current = thickness; }, [thickness]);
+
+  // Size the canvas buffer to CSS display size × DPR
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr  = window.devicePixelRatio || 1;
       canvas.width  = Math.round(rect.width  * dpr);
       canvas.height = Math.round(rect.height * dpr);
       const ctx = canvas.getContext("2d");
       ctx.scale(dpr, dpr);
-      // Re-apply stable stroke styles after resize
-      ctx.lineWidth   = 1.5;
       ctx.lineCap     = "round";
       ctx.lineJoin    = "round";
-      ctx.strokeStyle = "#14F195";
+      // Re-apply current dynamic values after every resize
+      ctx.strokeStyle = colorRef.current;
+      ctx.lineWidth   = thicknessRef.current;
     };
 
     resize();
@@ -145,24 +162,17 @@ function SignatureCanvas({ onCapture }) {
     return () => ro.disconnect();
   }, []);
 
-  // Convert a mouse/touch event to canvas-local CSS coordinates.
-  // We use getBoundingClientRect() because canvas CSS size === physical display size
-  // after the ResizeObserver sets the internal buffer. No extra scaling needed.
   function getPos(e) {
     const canvas = canvasRef.current;
     const rect   = canvas.getBoundingClientRect();
     const src    = e.touches ? e.touches[0] : e;
-    return {
-      x: src.clientX - rect.left,
-      y: src.clientY - rect.top,
-    };
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
   }
 
   function startDraw(e) {
     e.preventDefault();
-    const pos = getPos(e);
-    drawingRef.current  = true;
-    lastPosRef.current  = pos;
+    drawingRef.current = true;
+    lastPosRef.current = getPos(e);
   }
 
   function draw(e) {
@@ -173,24 +183,28 @@ function SignatureCanvas({ onCapture }) {
     const pos    = getPos(e);
     const last   = lastPosRef.current;
 
+    // Apply latest color + thickness on every segment
+    ctx.strokeStyle = colorRef.current;
+    ctx.lineWidth   = thicknessRef.current;
+    ctx.lineCap     = "round";
+    ctx.lineJoin    = "round";
+
     ctx.beginPath();
     ctx.moveTo(last.x, last.y);
-    ctx.lineTo(pos.x, pos.y);
+    ctx.lineTo(pos.x,  pos.y);
     ctx.stroke();
 
-    lastPosRef.current  = pos;
+    lastPosRef.current    = pos;
     hasContentRef.current = true;
   }
 
-  function stopDraw(e) {
+  function stopDraw() {
     if (!drawingRef.current) return;
     drawingRef.current = false;
     lastPosRef.current = null;
     if (hasContentRef.current) {
       canvasRef.current.toBlob(
-        (blob) => {
-          if (blob) onCapture(new File([blob], "signature.png", { type: "image/png" }));
-        },
+        (blob) => { if (blob) onCapture(new File([blob], "signature.png", { type: "image/png" })); },
         "image/png"
       );
     }
@@ -198,11 +212,8 @@ function SignatureCanvas({ onCapture }) {
 
   function clearCanvas() {
     const canvas = canvasRef.current;
-    const ctx    = canvas.getContext("2d");
-    // Clear in CSS-pixel space (context is already scaled by DPR via the
-    // scale() call in the ResizeObserver — so clearRect in CSS units is correct)
-    const rect = canvas.getBoundingClientRect();
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    const rect   = canvas.getBoundingClientRect();
+    canvas.getContext("2d").clearRect(0, 0, rect.width, rect.height);
     hasContentRef.current = false;
     onCapture(null);
   }
@@ -220,13 +231,66 @@ function SignatureCanvas({ onCapture }) {
         onTouchMove={draw}
         onTouchEnd={stopDraw}
       />
-      <div className="signature-canvas-footer">
-        <span className="sig-hint">✍ Draw your signature above</span>
+
+      {/* ── Toolbar: color + thickness ── */}
+      <div className="sig-toolbar">
+        {/* Color swatches */}
+        <div className="sig-toolbar-group">
+          {SIG_COLORS.map(({ hex, label }) => (
+            <button
+              key={hex}
+              type="button"
+              title={label}
+              className={`sig-color-swatch${color === hex ? " active" : ""}`}
+              style={{ background: hex }}
+              onClick={() => setColor(hex)}
+            />
+          ))}
+          {/* Free colour picker */}
+          <label className="sig-color-picker-btn" title="Custom colour">
+            <input
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              style={{ opacity: 0, position: "absolute", width: 0, height: 0 }}
+            />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/>
+              <circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/>
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+            </svg>
+          </label>
+        </div>
+
+        {/* Thickness slider */}
+        <div className="sig-toolbar-group sig-thickness-group">
+          <span className="sig-toolbar-label">Thickness</span>
+          <input
+            type="range"
+            className="slider-input sig-thickness-slider"
+            min="1"
+            max="8"
+            step="0.5"
+            value={thickness}
+            onChange={(e) => setThickness(parseFloat(e.target.value))}
+          />
+          {/* Live pen preview circle */}
+          <span
+            className="sig-thickness-dot"
+            style={{
+              width:  `${Math.max(4, thickness * 2.5)}px`,
+              height: `${Math.max(4, thickness * 2.5)}px`,
+              background: color,
+            }}
+          />
+        </div>
+
         <button type="button" className="sig-clear-btn" onClick={clearCanvas}>Clear</button>
       </div>
     </div>
   );
 }
+
 // ─── Signature Position Preview ───────────────────────────────────────────────
 const PDF_W = 595; // A4 in points
 const PDF_H = 842;

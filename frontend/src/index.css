@@ -2468,3 +2468,104 @@ select.form-input {
   opacity: 1;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIGNATURE CANVAS TOOLBAR (color + thickness)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sig-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  flex-wrap: wrap;
+}
+
+.sig-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sig-toolbar-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Color swatches ── */
+.sig-color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.sig-color-swatch:hover {
+  transform: scale(1.2);
+}
+
+.sig-color-swatch.active {
+  border-color: #fff;
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.3), 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* ── Custom colour picker button ── */
+.sig-color-picker-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.sig-color-picker-btn:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(255,255,255,0.3);
+}
+
+/* ── Thickness group ── */
+.sig-thickness-group {
+  flex: 1;
+  min-width: 140px;
+  gap: 8px;
+}
+
+.sig-thickness-slider {
+  flex: 1;
+  height: 4px !important;
+  margin: 0 !important;
+}
+
+/* Live preview dot — grows/shrinks with slider, coloured with pen colour */
+.sig-thickness-dot {
+  display: inline-block;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: width 0.12s, height 0.12s, background 0.12s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+/* Remove the old footer (hint text only, now replaced by toolbar) */
+.signature-canvas-footer {
+  display: none;
+}
+
