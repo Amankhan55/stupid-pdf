@@ -115,57 +115,95 @@ function StatusBar({ status, message }) {
 // ─── Signature Canvas ──────────────────────────────────────────────────────────
 function SignatureCanvas({ onCapture }) {
   const canvasRef = useRef(null);
-  const [drawing, setDrawing] = useState(false);
-  const [hasContent, setHasContent] = useState(false);
+  const drawingRef = useRef(false);
+  const lastPosRef = useRef(null);
+  const hasContentRef = useRef(false);
 
-  function getPos(e, canvas) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
+  // On mount: size the canvas's internal pixel buffer to match its CSS display
+  // size × devicePixelRatio so coords are exact on all screens (Retina etc.)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width  = Math.round(rect.width  * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+      // Re-apply stable stroke styles after resize
+      ctx.lineWidth   = 1.5;
+      ctx.lineCap     = "round";
+      ctx.lineJoin    = "round";
+      ctx.strokeStyle = "#14F195";
+    };
+
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
+
+  // Convert a mouse/touch event to canvas-local CSS coordinates.
+  // We use getBoundingClientRect() because canvas CSS size === physical display size
+  // after the ResizeObserver sets the internal buffer. No extra scaling needed.
+  function getPos(e) {
+    const canvas = canvasRef.current;
+    const rect   = canvas.getBoundingClientRect();
+    const src    = e.touches ? e.touches[0] : e;
+    return {
+      x: src.clientX - rect.left,
+      y: src.clientY - rect.top,
+    };
   }
 
   function startDraw(e) {
     e.preventDefault();
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const { x, y } = getPos(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setDrawing(true);
+    const pos = getPos(e);
+    drawingRef.current  = true;
+    lastPosRef.current  = pos;
   }
 
   function draw(e) {
-    if (!drawing) return;
+    if (!drawingRef.current) return;
     e.preventDefault();
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    const { x, y } = getPos(e, canvas);
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#14F195";
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = "#14F195";
-    ctx.lineTo(x, y);
+    const ctx    = canvas.getContext("2d");
+    const pos    = getPos(e);
+    const last   = lastPosRef.current;
+
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
-    setHasContent(true);
+
+    lastPosRef.current  = pos;
+    hasContentRef.current = true;
   }
 
-  function stopDraw() {
-    if (!drawing) return;
-    setDrawing(false);
-    if (hasContent) {
-      canvasRef.current.toBlob((blob) => {
-        if (blob) onCapture(new File([blob], "signature.png", { type: "image/png" }));
-      });
+  function stopDraw(e) {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    lastPosRef.current = null;
+    if (hasContentRef.current) {
+      canvasRef.current.toBlob(
+        (blob) => {
+          if (blob) onCapture(new File([blob], "signature.png", { type: "image/png" }));
+        },
+        "image/png"
+      );
     }
   }
 
   function clearCanvas() {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasContent(false);
+    const ctx    = canvas.getContext("2d");
+    // Clear in CSS-pixel space (context is already scaled by DPR via the
+    // scale() call in the ResizeObserver — so clearRect in CSS units is correct)
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    hasContentRef.current = false;
     onCapture(null);
   }
 
@@ -173,8 +211,6 @@ function SignatureCanvas({ onCapture }) {
     <div className="signature-canvas-wrapper">
       <canvas
         ref={canvasRef}
-        width={440}
-        height={140}
         className="signature-canvas"
         onMouseDown={startDraw}
         onMouseMove={draw}
