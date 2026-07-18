@@ -42,10 +42,10 @@ export default function Navbar({ onSelectTool, onUploadClick }) {
 
           {/* Right: Engine Status & CTA */}
           <div className="nav-right-actions">
-            <div className="nav-status-badge">
+            {/* <div className="nav-status-badge">
               <span className="status-dot"></span>
               <span>Stateless Engine</span>
-            </div>
+            </div> */}
 
             <button
               className="btn-emerald-cta"
