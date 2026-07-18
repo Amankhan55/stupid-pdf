@@ -645,9 +645,11 @@ def annotate_pdf(pdf_bytes: bytes, annotations: list) -> bytes:
             color_hex = ann.get("color", "#FFFF00")
             rgb = hex_to_rgb(color_hex)
             rect = fitz.Rect(x, y, x2, y2)
-            highlight = page.add_highlight_annot(rect)
-            highlight.set_colors(stroke=rgb)
-            highlight.update()
+            # Use rect_annot with opacity for a reliable highlight overlay box
+            rect_ann = page.add_rect_annot(rect)
+            rect_ann.set_colors(stroke=rgb, fill=rgb)
+            rect_ann.set_opacity(0.35)
+            rect_ann.update()
 
         elif ann_type == "text":
             content = ann.get("content", "")
@@ -656,13 +658,13 @@ def annotate_pdf(pdf_bytes: bytes, annotations: list) -> bytes:
             color_hex = ann.get("color", "#FFD700")
             rgb = hex_to_rgb(color_hex)
             rect = fitz.Rect(x, y, x + ann_width, y + ann_height)
+            # border_color is omitted to avoid PyMuPDF rich_text ValueError
             text_ann = page.add_freetext_annot(
                 rect,
                 content,
-                fontsize=10,
+                fontsize=12,
                 text_color=(0, 0, 0),
                 fill_color=rgb,
-                border_color=(0.5, 0.5, 0.5),
             )
             text_ann.update()
 

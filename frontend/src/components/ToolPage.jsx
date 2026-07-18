@@ -35,6 +35,10 @@ import {
   ExtractTextIcon, ExtractImagesIcon, ExcelIcon,
   SignatureIcon, AnnotateIcon,
 } from "./Icons";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+
 
 // ─── Drag-to-Rearrange list ────────────────────────────────────────────────────
 function DragList({ pages, setPages }) {
@@ -291,21 +295,89 @@ function SignatureCanvas({ onCapture }) {
   );
 }
 
-// ─── Signature Position Preview ───────────────────────────────────────────────
-const PDF_W = 595; // A4 in points
-const PDF_H = 842;
+// ─── PDF Page Canvas Renderer (using pdfjs-dist) ────────────────────────────────
+function PdfPageCanvas({ file, pageNum = 1, onDimensions }) {
+  const canvasRef = useRef(null);
+  const [loading, setLoading] = useState(false);
 
-function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
+  useEffect(() => {
+    if (!file) return;
+    let isCancelled = false;
+
+    async function renderPage() {
+      setLoading(true);
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (isCancelled) return;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const total = pdf.numPages;
+        const targetPage = Math.max(1, Math.min(pageNum, total));
+        const page = await pdf.getPage(targetPage);
+        if (isCancelled) return;
+
+        const unscaled = page.getViewport({ scale: 1.0 });
+        if (onDimensions) {
+          onDimensions({ width: unscaled.width, height: unscaled.height, totalPages: total });
+        }
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const parent = canvas.parentElement;
+        const parentWidth = parent ? parent.getBoundingClientRect().width : 360;
+        const scale = (parentWidth || 360) / unscaled.width;
+        const dpr = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: scale * dpr });
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        if (!isCancelled) setLoading(false);
+      } catch (err) {
+        console.error("PDF render error:", err);
+        if (!isCancelled) setLoading(false);
+      }
+    }
+
+    renderPage();
+    return () => { isCancelled = true; };
+  }, [file, pageNum]);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {loading && (
+        <div className="pdf-preview-loading">
+          <span className="progress-spinner-dot" /> Rendering page {pageNum}…
+        </div>
+      )}
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: "block",
+          width: "100%",
+          height: "auto",
+          borderRadius: "4px"
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Signature Position Preview ───────────────────────────────────────────────
+function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, height, onChange }) {
   const wrapRef = useRef(null);
   const isDraggingRef = useRef(false);
   const dragOffsetRef = useRef({ dx: 0, dy: 0 });
   const [sigUrl, setSigUrl] = useState(null);
   const [livePos, setLivePos] = useState({ x, y });
+  const [pageDims, setPageDims] = useState({ width: 595, height: 842, totalPages: 1 });
 
-  // Keep livePos in sync when parent state changes via number inputs
+  const PDF_W = pageDims.width;
+  const PDF_H = pageDims.height;
+
   useEffect(() => { setLivePos({ x, y }); }, [x, y]);
 
-  // Create an object URL for the signature file to preview it
   useEffect(() => {
     if (!sigFile) { setSigUrl(null); return; }
     const url = URL.createObjectURL(sigFile);
@@ -313,8 +385,8 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
     return () => URL.revokeObjectURL(url);
   }, [sigFile]);
 
-  // Convert client coordinates → PDF points using the wrapper's bounding rect
   function clientToPdf(e) {
+    if (!wrapRef.current) return { x: 0, y: 0 };
     const rect = wrapRef.current.getBoundingClientRect();
     const src  = e.touches ? e.touches[0] : e;
     return {
@@ -327,7 +399,6 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
     return Math.round(Math.max(0, Math.min(val, max)));
   }
 
-  // Click on the page background → centre signature on click point
   function handlePageClick(e) {
     if (isDraggingRef.current) return;
     const pos  = clientToPdf(e);
@@ -337,7 +408,6 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
     onChange(newX, newY);
   }
 
-  // Start dragging the signature box
   function handleSigMouseDown(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -346,16 +416,14 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
     isDraggingRef.current = true;
   }
 
-  // Move handler on the whole page area
   function handleMouseMove(e) {
     if (!isDraggingRef.current) return;
     const pos  = clientToPdf(e);
     const newX = clamp(pos.x - dragOffsetRef.current.dx, PDF_W - width);
     const newY = clamp(pos.y - dragOffsetRef.current.dy, PDF_H - height);
-    setLivePos({ x: newX, y: newY }); // update preview immediately (no re-render lag)
+    setLivePos({ x: newX, y: newY });
   }
 
-  // Stop drag → commit to parent
   function handleMouseUp() {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
@@ -369,9 +437,8 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
 
   return (
     <div className="sig-pos-preview-wrapper">
-      {/* Header row */}
       <div className="sig-pos-preview-header">
-        <span className="sig-pos-preview-label">📄 Click on page to place · Drag to reposition</span>
+        <span className="sig-pos-preview-label">📄 Click on actual page to place · Drag to reposition</span>
         <span className="sig-coords-live-badge">
           <span className="coords-axis">X</span>{Math.round(livePos.x)}
           <span className="coords-sep">·</span>
@@ -379,7 +446,6 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
         </span>
       </div>
 
-      {/* Page preview — aspect-ratio trick keeps A4 shape at any width */}
       <div className="sig-page-outer">
         <div
           ref={wrapRef}
@@ -393,15 +459,17 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
           onTouchEnd={handleMouseUp}
         >
           <div className="sig-page-content">
-            {/* Subtle page line guides */}
-            <div className="sig-page-lines">
-              <div className="sig-line sig-line-h" style={{ top: '10%' }} />
-              <div className="sig-line sig-line-h" style={{ top: '90%' }} />
-              <div className="sig-line sig-line-v" style={{ left: '7%' }} />
-              <div className="sig-line sig-line-v" style={{ left: '93%' }} />
-            </div>
+            {pdfFile ? (
+              <PdfPageCanvas file={pdfFile} pageNum={pageNum} onDimensions={setPageDims} />
+            ) : (
+              <div className="sig-page-lines">
+                <div className="sig-line sig-line-h" style={{ top: '10%' }} />
+                <div className="sig-line sig-line-h" style={{ top: '90%' }} />
+                <div className="sig-line sig-line-v" style={{ left: '7%' }} />
+                <div className="sig-line sig-line-v" style={{ left: '93%' }} />
+              </div>
+            )}
 
-            {/* Signature placement box */}
             <div
               className="sig-drop-box"
               style={{
@@ -424,7 +492,6 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
                   <span>✍</span>
                 </div>
               )}
-              {/* Drag handle indicator */}
               <div className="sig-drag-handle" title="Drag to move">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" opacity="0.6">
                   <circle cx="2" cy="2" r="1"/><circle cx="5" cy="2" r="1"/><circle cx="8" cy="2" r="1"/>
@@ -439,6 +506,203 @@ function SignaturePositionPreview({ sigFile, x, y, width, height, onChange }) {
     </div>
   );
 }
+
+// ─── Annotate PDF Live Preview Component ─────────────────────────────────────
+function AnnotatePositionPreview({
+  pdfFile,
+  pageNum,
+  onPageChange,
+  annType,
+  annColor,
+  annContent,
+  annotations,
+  onAddAnnotation,
+  onRemoveAnnotation
+}) {
+  const wrapRef = useRef(null);
+  const [pageDims, setPageDims] = useState({ width: 595, height: 842, totalPages: 1 });
+  const [drawingBox, setDrawingBox] = useState(null);
+  const isDrawingRef = useRef(false);
+
+  const PDF_W = pageDims.width;
+  const PDF_H = pageDims.height;
+
+  function clientToPdf(e) {
+    if (!wrapRef.current) return { x: 0, y: 0 };
+    const rect = wrapRef.current.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return {
+      x: Math.max(0, Math.min(PDF_W, ((src.clientX - rect.left) / rect.width) * PDF_W)),
+      y: Math.max(0, Math.min(PDF_H, ((src.clientY - rect.top) / rect.height) * PDF_H)),
+    };
+  }
+
+  function handleMouseDown(e) {
+    if (e.target.closest('.ann-overlay-box') || e.target.closest('.ann-page-nav')) return;
+    e.preventDefault();
+    const pos = clientToPdf(e);
+    isDrawingRef.current = true;
+    setDrawingBox({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
+  }
+
+  function handleMouseMove(e) {
+    if (!isDrawingRef.current) return;
+    const pos = clientToPdf(e);
+    setDrawingBox((prev) => prev ? { ...prev, currentX: pos.x, currentY: pos.y } : null);
+  }
+
+  function handleMouseUp() {
+    if (!isDrawingRef.current || !drawingBox) return;
+    isDrawingRef.current = false;
+
+    const x1 = Math.min(drawingBox.startX, drawingBox.currentX);
+    const y1 = Math.min(drawingBox.startY, drawingBox.currentY);
+    const x2 = Math.max(drawingBox.startX, drawingBox.currentX);
+    const y2 = Math.max(drawingBox.startY, drawingBox.currentY);
+
+    setDrawingBox(null);
+
+    // Ignore tiny accidental clicks (<5px)
+    if (Math.abs(x2 - x1) < 5 && Math.abs(y2 - y1) < 5) return;
+
+    if (annType === "highlight") {
+      onAddAnnotation({
+        type: "highlight",
+        page: pageNum,
+        x: Math.round(x1),
+        y: Math.round(y1),
+        x2: Math.round(x2),
+        y2: Math.round(y2),
+        color: annColor,
+      });
+    } else {
+      onAddAnnotation({
+        type: "text",
+        page: pageNum,
+        x: Math.round(x1),
+        y: Math.round(y1),
+        width: Math.round(Math.max(40, x2 - x1)),
+        height: Math.round(Math.max(25, y2 - y1)),
+        content: annContent || "Note text",
+        color: annColor,
+      });
+    }
+  }
+
+  const currentPageAnns = annotations
+    .map((ann, originalIdx) => ({ ...ann, originalIdx }))
+    .filter((a) => a.page === pageNum);
+
+  return (
+    <div className="ann-preview-wrapper">
+      <div className="ann-preview-header">
+        <span className="ann-preview-label">
+          🖍 Click &amp; drag on PDF page to draw {annType === "highlight" ? "Highlight" : "Text Box"}
+        </span>
+        <div className="ann-page-nav">
+          <button
+            type="button"
+            className="ann-nav-btn"
+            disabled={pageNum <= 1}
+            onClick={() => onPageChange(Math.max(1, pageNum - 1))}
+          >
+            ‹
+          </button>
+          <span>Page {pageNum} of {pageDims.totalPages}</span>
+          <button
+            type="button"
+            className="ann-nav-btn"
+            disabled={pageNum >= pageDims.totalPages}
+            onClick={() => onPageChange(Math.min(pageDims.totalPages, pageNum + 1))}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div className="sig-page-outer">
+        <div
+          ref={wrapRef}
+          className="sig-page-inner"
+          style={{ paddingTop: `${(PDF_H / PDF_W) * 100}%`, cursor: "crosshair" }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleMouseDown}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
+        >
+          <div className="sig-page-content">
+            {pdfFile ? (
+              <PdfPageCanvas file={pdfFile} pageNum={pageNum} onDimensions={setPageDims} />
+            ) : (
+              <div className="sig-page-lines">
+                <div className="sig-line sig-line-h" style={{ top: '10%' }} />
+                <div className="sig-line sig-line-h" style={{ top: '90%' }} />
+              </div>
+            )}
+
+            {/* Live drawing box rubberband */}
+            {drawingBox && (
+              <div
+                className="ann-rubberband"
+                style={{
+                  left: `${(Math.min(drawingBox.startX, drawingBox.currentX) / PDF_W) * 100}%`,
+                  top: `${(Math.min(drawingBox.startY, drawingBox.currentY) / PDF_H) * 100}%`,
+                  width: `${(Math.abs(drawingBox.currentX - drawingBox.startX) / PDF_W) * 100}%`,
+                  height: `${(Math.abs(drawingBox.currentY - drawingBox.startY) / PDF_H) * 100}%`,
+                  borderColor: annColor,
+                  background: annType === "highlight" ? `${annColor}44` : `${annColor}22`,
+                }}
+              >
+                <span className="ann-box-coords">
+                  {Math.round(Math.min(drawingBox.startX, drawingBox.currentX))}, {Math.round(Math.min(drawingBox.startY, drawingBox.currentY))}
+                </span>
+              </div>
+            )}
+
+            {/* Existing page annotations overlay */}
+            {currentPageAnns.map((ann) => {
+              const boxX1 = ann.x;
+              const boxY1 = ann.y;
+              const boxW = ann.type === "highlight" ? (ann.x2 - ann.x) : ann.width;
+              const boxH = ann.type === "highlight" ? (ann.y2 - ann.y) : ann.height;
+
+              return (
+                <div
+                  key={ann.originalIdx}
+                  className={`ann-overlay-box ann-type-${ann.type}`}
+                  style={{
+                    left: `${(boxX1 / PDF_W) * 100}%`,
+                    top: `${(boxY1 / PDF_H) * 100}%`,
+                    width: `${(boxW / PDF_W) * 100}%`,
+                    height: `${(boxH / PDF_H) * 100}%`,
+                    background: ann.type === "highlight" ? `${ann.color}55` : ann.color,
+                    borderColor: ann.color,
+                  }}
+                >
+                  {ann.type === "text" && (
+                    <span className="ann-box-text">{ann.content || "Note"}</span>
+                  )}
+                  <button
+                    type="button"
+                    className="ann-box-del-btn"
+                    onClick={(e) => { e.stopPropagation(); onRemoveAnnotation(ann.originalIdx); }}
+                    title="Remove annotation"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
 const TOOL_META = {
@@ -956,10 +1220,12 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
               <input className="form-input" type="number" min="1" value={sigPageNum} onChange={(e) => setSigPageNum(parseInt(e.target.value) || 1)} />
             </div>
 
-            {/* ── Live position preview ── */}
+            {/* ── Live position preview on actual PDF page ── */}
             <div className="form-group">
               <label>Signature Position</label>
               <SignaturePositionPreview
+                pdfFile={files[0]}
+                pageNum={sigPageNum}
                 sigFile={sigFile}
                 x={sigX}
                 y={sigY}
@@ -988,34 +1254,57 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         return (
           <>
             <div className="form-group">
-              <label>Add Annotation</label>
+              <label>Annotation Type &amp; Options</label>
               <div className="ann-builder">
                 <div className="ann-row">
                   <select className="form-input" value={annType} onChange={(e) => setAnnType(e.target.value)} style={{ flex: 1 }}>
-                    <option value="highlight">🖍 Highlight</option>
-                    <option value="text">📝 Text Box</option>
+                    <option value="highlight">🖍 Highlight Box</option>
+                    <option value="text">📝 Text Note Box</option>
                   </select>
-                  <input className="form-input" type="number" min="1" value={annPage} onChange={(e) => setAnnPage(parseInt(e.target.value) || 1)} style={{ width: "80px" }} placeholder="Page" />
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label style={{ fontSize: "12px", color: "var(--text-muted)" }}>Color:</label>
+                    <input type="color" value={annColor} onChange={(e) => setAnnColor(e.target.value)}
+                      style={{ width: "32px", height: "32px", borderRadius: "6px", border: "none", cursor: "pointer" }} />
+                  </div>
                 </div>
                 {annType === "text" && (
-                  <input className="form-input" placeholder="Annotation text content…" value={annContent} onChange={(e) => setAnnContent(e.target.value)} style={{ marginTop: "8px" }} />
+                  <input className="form-input" placeholder="Enter text content for note box…" value={annContent} onChange={(e) => setAnnContent(e.target.value)} style={{ marginTop: "8px" }} />
                 )}
-                <div className="ann-coords-row">
-                  <div><span className="form-hint">X1</span><input className="form-input" type="number" value={annX} onChange={(e) => setAnnX(parseFloat(e.target.value))} /></div>
-                  <div><span className="form-hint">Y1</span><input className="form-input" type="number" value={annY} onChange={(e) => setAnnY(parseFloat(e.target.value))} /></div>
-                  <div><span className="form-hint">X2</span><input className="form-input" type="number" value={annX2} onChange={(e) => setAnnX2(parseFloat(e.target.value))} /></div>
-                  <div><span className="form-hint">Y2</span><input className="form-input" type="number" value={annY2} onChange={(e) => setAnnY2(parseFloat(e.target.value))} /></div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "10px" }}>
-                  <label style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: 600 }}>Color:</label>
-                  <input type="color" value={annColor} onChange={(e) => setAnnColor(e.target.value)}
-                    style={{ width: "32px", height: "32px", borderRadius: "6px", border: "none", cursor: "pointer" }} />
-                  <button type="button" className="btn btn-secondary" style={{ marginLeft: "auto", padding: "8px 16px", fontSize: "13px" }} onClick={addAnnotation}>
-                    + Add
-                  </button>
-                </div>
               </div>
             </div>
+
+            {/* ── Interactive PDF Page Annotation Preview ── */}
+            <div className="form-group">
+              <label>Interactive PDF Page Preview</label>
+              <AnnotatePositionPreview
+                pdfFile={files[0]}
+                pageNum={annPage}
+                onPageChange={(p) => setAnnPage(p)}
+                annType={annType}
+                annColor={annColor}
+                annContent={annContent}
+                annotations={annotations}
+                onAddAnnotation={(newAnn) => setAnnotations([...annotations, newAnn])}
+                onRemoveAnnotation={(idx) => setAnnotations(annotations.filter((_, i) => i !== idx))}
+              />
+            </div>
+
+            {/* ── Manual Coordinate Input & Queue ── */}
+            <div className="form-group">
+              <label>Manual Coordinates (or drag on page above)</label>
+              <div className="ann-builder">
+                <div className="ann-coords-row">
+                  <div><span className="form-hint">X1</span><input className="form-input" type="number" value={annX} onChange={(e) => setAnnX(parseFloat(e.target.value) || 0)} /></div>
+                  <div><span className="form-hint">Y1</span><input className="form-input" type="number" value={annY} onChange={(e) => setAnnY(parseFloat(e.target.value) || 0)} /></div>
+                  <div><span className="form-hint">X2</span><input className="form-input" type="number" value={annX2} onChange={(e) => setAnnX2(parseFloat(e.target.value) || 0)} /></div>
+                  <div><span className="form-hint">Y2</span><input className="form-input" type="number" value={annY2} onChange={(e) => setAnnY2(parseFloat(e.target.value) || 0)} /></div>
+                </div>
+                <button type="button" className="btn btn-secondary" style={{ marginTop: "10px", width: "100%", fontSize: "13px" }} onClick={addAnnotation}>
+                  + Add Manual Annotation
+                </button>
+              </div>
+            </div>
+
             {annotations.length > 0 && (
               <div className="form-group">
                 <label>Annotation Queue ({annotations.length})</label>
