@@ -24,7 +24,7 @@ export default function App() {
   return (
     <div className="app-container">
       {/* Glass Top Navbar */}
-      <Navbar onSelectTool={handleSelectTool} onUploadClick={handleTriggerUpload} />
+      <Navbar activeTool={activeTool} onSelectTool={handleSelectTool} />
 
       {/* Page Content */}
       {activeTool === "home" ? (
@@ -35,7 +35,12 @@ export default function App() {
         <div className="app-layout">
           <Sidebar active={activeTool} onSelect={handleSelectTool} />
           <main className="main-content">
-            <ToolPage key={`${activeTool}-${initialFile?.name || "new"}`} toolId={activeTool} initialFile={initialFile} onSelectTool={handleSelectTool} />
+            <ToolPage
+              key={`${activeTool}-${Array.isArray(initialFile) ? initialFile.map(f => f.name).join(",") : (initialFile?.name || "new")}`}
+              toolId={activeTool}
+              initialFile={initialFile}
+              onSelectTool={handleSelectTool}
+            />
           </main>
         </div>
       )}

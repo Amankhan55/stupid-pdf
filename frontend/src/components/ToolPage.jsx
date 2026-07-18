@@ -734,7 +734,9 @@ const TOOL_META = {
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
 export default function ToolPage({ toolId, initialFile, onSelectTool }) {
-  const [files, setFiles] = useState(initialFile ? [initialFile] : []);
+  const [files, setFiles] = useState(
+    initialFile ? (Array.isArray(initialFile) ? initialFile : [initialFile]) : []
+  );
   const [files2, setFiles2] = useState([]);
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState("");

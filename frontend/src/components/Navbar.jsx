@@ -1,8 +1,41 @@
-import React from "react";
+import React, { useRef } from "react";
 
-export default function Navbar({ onSelectTool, onUploadClick }) {
+export default function Navbar({ activeTool = "home", onSelectTool }) {
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    if (files.length > 1) {
+      // Multiple files selected -> open Merge tool
+      if (onSelectTool) onSelectTool("merge", files);
+    } else {
+      // Single file selected -> open active tool (if not home) or compress tool
+      const targetTool = (activeTool && activeTool !== "home") ? activeTool : "compress";
+      if (onSelectTool) onSelectTool(targetTool, files[0]);
+    }
+
+    // Reset input value so re-selecting the same file works
+    e.target.value = "";
+  };
+
+  const handleBtnClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <header className="navbar-glass">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        multiple
+        accept="application/pdf, .pdf, .docx, image/*"
+        style={{ display: "none" }}
+      />
       <div className="max-width-wrapper">
         <div className="navbar-inner">
           {/* Left: Brand Logo */}
@@ -15,47 +48,12 @@ export default function Navbar({ onSelectTool, onUploadClick }) {
             </span>
           </div>
 
-          {/* Center: Essential Navigation */}
-          {/* <ul className="nav-links-center">
-            <li
-              className="nav-link-item"
-              onClick={() => {
-                if (onSelectTool) onSelectTool("home");
-                const gridEl = document.getElementById("tools-grid-anchor");
-                gridEl?.scrollIntoView({ behavior: "smooth" });
-              }}
-            >
-              All Tools
-            </li>
-            <li className="nav-link-item">
-              <a
-                href="https://github.com/Amankhan55/stupid-pdf"
-                target="_blank"
-                rel="noreferrer"
-                className="nav-link-item"
-                style={{ textDecoration: "none" }}
-              >
-                GitHub
-              </a>
-            </li>
-          </ul> */}
-
           {/* Right: Engine Status & CTA */}
           <div className="nav-right-actions">
-            {/* <div className="nav-status-badge">
-              <span className="status-dot"></span>
-              <span>Stateless Engine</span>
-            </div> */}
-
             <button
+              type="button"
               className="btn-emerald-cta"
-              onClick={() => {
-                if (onUploadClick) {
-                  onUploadClick();
-                } else if (onSelectTool) {
-                  onSelectTool("compress");
-                }
-              }}
+              onClick={handleBtnClick}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
