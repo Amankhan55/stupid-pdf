@@ -54,30 +54,12 @@ export { TOOLS, PDF_TOOLS, CONVERSION_TOOLS };
 export default function Sidebar({ active, onSelect }) {
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo" onClick={() => onSelect("home")} style={{ cursor: "pointer" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img
-            src="/logo.png"
-            alt="StupidPDF Logo"
-            style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "6px",
-              boxShadow: "0 0 10px rgba(0, 242, 254, 0.4)",
-              objectFit: "cover"
-            }}
-          />
-          <h1 style={{ letterSpacing: "-0.01em" }}>StupidPDF</h1>
-        </div>
-        <p>PDF Processing Suite</p>
-      </div>
-
       <nav className="sidebar-nav">
         {/* Dashboard Link */}
         <button
           className={`sidebar-item${active === "home" ? " active" : ""}`}
           onClick={() => onSelect("home")}
-          style={{ marginBottom: "12px" }}
+          style={{ margin: "12px 0" }}
         >
           <span className="icon">
             <HomeIcon />
