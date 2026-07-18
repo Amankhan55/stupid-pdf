@@ -206,8 +206,8 @@ const TOOL_META = {
 };
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
-export default function ToolPage({ toolId }) {
-  const [files, setFiles] = useState([]);
+export default function ToolPage({ toolId, initialFile }) {
+  const [files, setFiles] = useState(initialFile ? [initialFile] : []);
   const [files2, setFiles2] = useState([]); // second file for add-pdf
   const [status, setStatus] = useState(null);
   const [message, setMessage] = useState("");
