@@ -68,7 +68,7 @@ const CONVERSION_TOOLS = [
   { id: "pdf-to-images",   icon: PdfToImageIcon,   label: "PDF to Images" },
   { id: "images-to-pdf",   icon: ImageToPdfIcon,   label: "Images to PDF" },
   { id: "word-to-pdf",     icon: WordToPdfIcon,    label: "Word to PDF" },
-  { id: "pdf-to-word",     icon: PdfToWordIcon,    label: "PDF to Word" },
+  { id: "pdf-to-word",     icon: PdfToWordIcon,    label: "PDF to Word", comingSoon: true },
   { id: "pdf-to-excel",    icon: ExcelIcon,        label: "PDF to Excel", comingSoon: true },
 ];
 

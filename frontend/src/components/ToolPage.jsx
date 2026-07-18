@@ -720,7 +720,7 @@ const TOOL_META = {
   "pdf-to-images":    { icon: PdfToImageIcon,    title: "PDF to Images",       desc: "Convert PDF pages into PNG or JPG images packed into a ZIP.",                                        tag: "Convert" },
   "images-to-pdf":    { icon: ImageToPdfIcon,    title: "Images to PDF",       desc: "Convert a list of images into a single combined PDF document.",                                      tag: "Convert" },
   "word-to-pdf":      { icon: WordToPdfIcon,     title: "Word to PDF",         desc: "Convert Microsoft Word .docx documents into PDF format.",                                            tag: "Convert" },
-  "pdf-to-word":      { icon: PdfToWordIcon,     title: "PDF to Word",         desc: "Convert PDF documents back into editable Word .docx files.",                                        tag: "Convert" },
+  "pdf-to-word":      { icon: PdfToWordIcon,     title: "PDF to Word",         desc: "Convert PDF documents back into editable Word .docx files.",                                        tag: "Convert", comingSoon: true },
   "unlock-pdf":       { icon: UnlockIcon,        title: "Unlock PDF",          desc: "Remove password protection from a locked PDF.",                                                      tag: "Security" },
   "protect-pdf":      { icon: ProtectIcon,       title: "Protect PDF",         desc: "Encrypt your PDF with AES-256 password protection to keep it secure.",                              tag: "Security" },
   "add-watermark":    { icon: WatermarkIcon,     title: "Add Watermark",       desc: "Overlay a custom text watermark on every page of your PDF.",                                        tag: "Editing" },
