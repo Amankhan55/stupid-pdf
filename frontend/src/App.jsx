@@ -35,7 +35,7 @@ export default function App() {
         <div className="app-layout">
           <Sidebar active={activeTool} onSelect={handleSelectTool} />
           <main className="main-content">
-            <ToolPage key={`${activeTool}-${initialFile?.name || "new"}`} toolId={activeTool} initialFile={initialFile} />
+            <ToolPage key={`${activeTool}-${initialFile?.name || "new"}`} toolId={activeTool} initialFile={initialFile} onSelectTool={handleSelectTool} />
           </main>
         </div>
       )}

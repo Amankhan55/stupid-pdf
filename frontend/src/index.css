@@ -1244,6 +1244,65 @@ body {
   filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
 }
 
+.mobile-tool-header {
+  display: none;
+}
+
+/* Compression Options (Desktop) */
+.compress-options {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.compress-option {
+  flex: 1;
+  padding: 12px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition);
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+.compress-option:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-hover);
+}
+
+.compress-option.active {
+  border: 2px solid var(--accent-primary);
+  background: linear-gradient(135deg, rgba(20, 241, 149, 0.12), rgba(0, 201, 255, 0.08));
+  color: var(--text-primary);
+  box-shadow: 0 0 20px rgba(20, 241, 149, 0.1);
+}
+
+.compress-option-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.compress-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.compress-option-desc {
+  font-size: 0.7rem;
+  margin-top: 4px;
+  opacity: 0.75;
+}
+
 /* ─── RESPONSIVE BREAKPOINTS ─────────────────────────────────────────── */
 @media (max-width: 1200px) {
   .hero-split-grid { grid-template-columns: 1fr; gap: 40px; }
@@ -1287,6 +1346,65 @@ body {
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-primary);
+  }
+
+  /* Spacing Adjustments */
+  .page-header {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 16px 16px 40px !important;
+  }
+
+  .card {
+    padding: 20px 16px !important;
+  }
+
+  .upload-zone {
+    padding: 28px 16px !important;
+  }
+
+  /* Action Bar & Buttons */
+  .action-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .action-bar .info-text {
+    text-align: center;
+  }
+
+  .action-bar > div {
+    display: flex;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .action-bar .btn {
+    flex: 1;
+    padding: 12px 10px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Compression Selector */
+  .compress-options {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .compress-option {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .btn-emerald-cta span {
+    display: none !important;
+  }
+  .btn-emerald-cta {
+    padding: 10px 12px !important;
   }
 }
 
