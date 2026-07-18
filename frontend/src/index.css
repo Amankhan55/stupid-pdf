@@ -2724,4 +2724,94 @@ select.form-input {
   transform: scale(1.2);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMING SOON BADGES & BANNERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.badge-coming-soon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(255, 190, 61, 0.15), rgba(249, 115, 22, 0.15));
+  border: 1px solid rgba(255, 190, 61, 0.35);
+  color: #ffbe3d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.card-coming-soon {
+  border-color: rgba(255, 190, 61, 0.2) !important;
+}
+
+.card-coming-soon.disabled {
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
+}
+
+.card-coming-soon.disabled:hover {
+  transform: none !important;
+  border-color: rgba(255, 190, 61, 0.2) !important;
+  box-shadow: none !important;
+}
+
+.card-soon-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffbe3d;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 190, 61, 0.1);
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 190, 61, 0.2);
+}
+
+.sidebar-soon-pill {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(255, 190, 61, 0.15);
+  color: #ffbe3d;
+  border: 1px solid rgba(255, 190, 61, 0.3);
+  padding: 2px 6px;
+  border-radius: 99px;
+  margin-left: auto;
+}
+
+.coming-soon-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(255, 190, 61, 0.08), rgba(249, 115, 22, 0.08));
+  border: 1.5px solid rgba(255, 190, 61, 0.3);
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+
+.coming-soon-banner-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.coming-soon-banner-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffbe3d;
+  margin-bottom: 4px;
+}
+
+.coming-soon-banner-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+
 
