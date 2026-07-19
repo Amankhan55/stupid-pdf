@@ -2,12 +2,7 @@ import { useRef, useState } from "react";
 import { getPdfInfo } from "../api/pdf";
 import { UploadCloudIcon, FileIcon } from "./Icons";
 import { validateFiles } from "../utils/fileValidation";
-
-function formatBytes(bytes) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-}
+import { formatBytes } from "../utils/format";
 
 export default function FileUpload({
   multiple = false,

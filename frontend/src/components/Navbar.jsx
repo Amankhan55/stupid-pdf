@@ -9,14 +9,18 @@ export default function Navbar({ activeTool = "home", onSelectTool }) {
     if (files.length === 0) return;
 
     if (files.length > 1) {
-      // Multiple files selected -> validate for Merge tool
-      const check = validateFiles(files, TOOL_RESTRICTIONS["merge"]);
+      // Multiple files selected -> route to Merge (PDFs) or Images to PDF (images)
+      const imageExts = TOOL_RESTRICTIONS["images-to-pdf"].extensions;
+      const allImages = files.every((f) => imageExts.includes(f.name.split(".").pop().toLowerCase()));
+      const targetTool = allImages ? "images-to-pdf" : "merge";
+
+      const check = validateFiles(files, TOOL_RESTRICTIONS[targetTool]);
       if (!check.valid) {
         alert(check.error);
         e.target.value = "";
         return;
       }
-      if (onSelectTool) onSelectTool("merge", files);
+      if (onSelectTool) onSelectTool(targetTool, files);
     } else {
       // Single file selected -> validate for active tool or compress tool
       const targetTool = (activeTool && activeTool !== "home") ? activeTool : "compress";

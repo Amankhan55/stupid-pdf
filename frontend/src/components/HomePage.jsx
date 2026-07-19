@@ -13,6 +13,7 @@ import {
   ExtractIcon,
   DeleteIcon
 } from "./Icons";
+import { formatBytes } from "../utils/format";
 
 export default function HomePage({ onSelect }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,13 +49,6 @@ export default function HomePage({ onSelect }) {
     if (e.target.files && e.target.files.length > 0) {
       setHeroFile(e.target.files[0]);
     }
-  };
-
-  const formatFileSize = (bytes) => {
-    if (!bytes) return "";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
   };
 
   // Helper to categorize tools
@@ -239,7 +233,7 @@ export default function HomePage({ onSelect }) {
                             {heroFile.name}
                           </div>
                           <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "2px" }}>
-                            {formatFileSize(heroFile.size)}
+                            {formatBytes(heroFile.size)}
                           </div>
                         </div>
                       </div>

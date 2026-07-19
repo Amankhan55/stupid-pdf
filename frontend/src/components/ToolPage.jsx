@@ -36,9 +36,13 @@ import {
   SignatureIcon, AnnotateIcon,
 } from "./Icons";
 import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
 import { TOOL_RESTRICTIONS, validateFiles } from "../utils/fileValidation";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+// Bundled locally (instead of a version-pinned CDN URL) so the worker always
+// matches the pdfjs-dist version actually resolved by npm, and the app has
+// no runtime dependency on a third-party CDN being reachable.
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 
 

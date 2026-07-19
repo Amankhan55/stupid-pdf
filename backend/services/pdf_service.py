@@ -43,38 +43,81 @@ def split_pdf(pdf_bytes: bytes, split_at: List[int]) -> List[bytes]:
     return result
 
 
+def _recompress_images(doc, jpeg_quality: int = 55, max_dimension: int = 1600) -> None:
+    """
+    Re-encode every embedded raster image as JPEG at reduced quality/resolution.
+    Embedded images are almost always the dominant contributor to PDF size, so
+    this is what actually moves the needle at the "high" compression level —
+    stream/object-level cleanup alone barely shrinks image-heavy PDFs.
+    """
+    from PIL import Image
+
+    seen_xrefs = set()
+    for page in doc:
+        for img in page.get_images(full=True):
+            xref = img[0]
+            if xref in seen_xrefs:
+                continue
+            seen_xrefs.add(xref)
+            try:
+                base_image = doc.extract_image(xref)
+                pil_img = Image.open(io.BytesIO(base_image["image"]))
+                if pil_img.mode not in ("RGB", "L"):
+                    pil_img = pil_img.convert("RGB")
+                if max(pil_img.size) > max_dimension:
+                    ratio = max_dimension / max(pil_img.size)
+                    new_size = (max(1, round(pil_img.width * ratio)), max(1, round(pil_img.height * ratio)))
+                    pil_img = pil_img.resize(new_size, Image.LANCZOS)
+                recompressed = io.BytesIO()
+                pil_img.save(recompressed, format="JPEG", quality=jpeg_quality, optimize=True)
+                page.replace_image(xref, stream=recompressed.getvalue())
+            except Exception:
+                continue  # leave images we can't safely recompress (e.g. masks) untouched
+
+
 def compress_pdf(pdf_bytes: bytes, level: str = "medium") -> bytes:
     """
-    Compress PDF at one of three levels using only PyPDF2 3.0.1 APIs:
-      - "low"    : lossless rewrite — just copying pages strips unused/orphan
-                   objects that accumulate in edited PDFs.
-      - "medium" : low + strip embedded links and JavaScript.
-      - "high"   : medium + zlib-compress every page's content stream.
-    """
-    reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
-    writer = PyPDF2.PdfWriter()
+    Compress a PDF using PyMuPDF, which can meaningfully shrink files by
+    garbage-collecting unused/duplicate objects and deflating streams —
+    unlike a plain PyPDF2 page copy, which barely changes size because it
+    never touches stream compression or image data.
 
-    for page in reader.pages:
-        writer.add_page(page)
+    - "low"    : lossless structural cleanup — merge duplicate objects, drop
+                 unreferenced ones, compact the cross-reference table.
+    - "medium" : low + deflate (recompress) streams/fonts/images losslessly,
+                 strip links.
+    - "high"   : medium + re-encode embedded images as JPEG at reduced
+                 quality and capped resolution — the biggest lever for
+                 image-heavy PDFs (scans, photo-filled documents).
+    """
+    import fitz
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
     if level in ("medium", "high"):
-        # Remove links (reduces cross-reference table bloat)
-        try:
-            writer.remove_links()
-        except Exception:
-            pass
+        for page in doc:
+            try:
+                page.remove_links()
+            except Exception:
+                pass
 
     if level == "high":
-        # Compress each page's content stream with zlib
-        for page in writer.pages:
-            try:
-                page.compress_content_streams()
-            except Exception:
-                pass  # skip pages whose streams can't be recompressed
+        _recompress_images(doc)
 
     output = io.BytesIO()
-    writer.write(output)
-    return output.getvalue()
+    doc.save(
+        output,
+        garbage=4,
+        deflate=True,
+        deflate_images=level in ("medium", "high"),
+        deflate_fonts=level in ("medium", "high"),
+        clean=level in ("medium", "high"),
+    )
+    result = output.getvalue()
+
+    # Never hand back a file bigger than the original (can happen on PDFs
+    # that are already well-optimized, e.g. re-compressing at "low").
+    return result if len(result) < len(pdf_bytes) else pdf_bytes
 
 
 def extract_pages(pdf_bytes: bytes, pages: List[int]) -> bytes:
@@ -179,6 +222,8 @@ def insert_blank_pages(pdf_bytes: bytes, positions: List[int]) -> bytes:
     """
     reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
     total = len(reader.pages)
+    if total == 0:
+        raise ValueError("Cannot insert blank pages into an empty PDF.")
 
     # Get dimensions from first page for blank page sizing
     first_page = reader.pages[0]
@@ -238,11 +283,13 @@ def add_pdf_to_existing(base_pdf_bytes: bytes, new_pdf_bytes: bytes, position: i
 def get_pdf_info(pdf_bytes: bytes) -> dict:
     """Return basic info about a PDF (page count, etc.)."""
     reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
-    first_page = reader.pages[0] if reader.pages else None
+    if not reader.pages:
+        return {"page_count": 0, "width": 0, "height": 0}
+    first_page = reader.pages[0]
     return {
         "page_count": len(reader.pages),
-        "width": float(first_page.mediabox.width) if first_page else 0,
-        "height": float(first_page.mediabox.height) if first_page else 0,
+        "width": float(first_page.mediabox.width),
+        "height": float(first_page.mediabox.height),
     }
 
 
@@ -285,6 +332,18 @@ def images_to_pdf(image_bytes_list: List[bytes]) -> bytes:
     return output.getvalue()
 
 
+def _block_remote_resources(uri: str, rel: str):
+    """
+    xhtml2pdf resolves every resource it finds in the HTML (img src, link
+    href, ...) by fetching it, including remote http(s) URLs — an SSRF vector
+    when the HTML comes from an untrusted uploaded document (e.g. a Word doc
+    with a "linked" rather than embedded image pointing at an internal URL).
+    Refusing to resolve anything keeps the conversion sandboxed to layout/text;
+    the resource is simply omitted from the output PDF instead of being fetched.
+    """
+    return None
+
+
 def word_to_pdf(docx_bytes: bytes) -> bytes:
     """Convert .docx file bytes to a styled PDF using mammoth & xhtml2pdf."""
     import mammoth
@@ -296,8 +355,8 @@ def word_to_pdf(docx_bytes: bytes) -> bytes:
 
     # We xhtml2pdf compile the HTML markup to PDF stream
     pdf_io = io.BytesIO()
-    pisa_status = pisa.CreatePDF(html_content, dest=pdf_io)
-    
+    pisa_status = pisa.CreatePDF(html_content, dest=pdf_io, link_callback=_block_remote_resources)
+
     if pisa_status.err:
         raise RuntimeError("Failed to convert HTML template layout to PDF.")
 
