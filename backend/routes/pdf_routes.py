@@ -185,6 +185,8 @@ async def extract_pages(
     try:
         result = pdf_service.extract_pages(data, page_list)
         return _pdf_response(result, "extracted.pdf")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         _server_error("extract pages", e)
 
@@ -202,6 +204,8 @@ async def delete_pages(
     try:
         result = pdf_service.delete_pages(data, page_list)
         return _pdf_response(result, "deleted.pdf")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         _server_error("delete pages", e)
 

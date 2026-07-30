@@ -1,6 +1,7 @@
 import io
 import json
 import zipfile
+from collections import Counter
 from typing import List
 import PyPDF2
 
@@ -129,6 +130,8 @@ def extract_pages(pdf_bytes: bytes, pages: List[int]) -> bytes:
         idx = p - 1
         if 0 <= idx < total:
             writer.add_page(reader.pages[idx])
+    if len(writer.pages) == 0:
+        raise ValueError(f"None of the requested pages exist in this document (it has {total} page{'s' if total != 1 else ''}).")
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()
@@ -143,6 +146,8 @@ def delete_pages(pdf_bytes: bytes, pages: List[int]) -> bytes:
     for idx in range(total):
         if idx not in pages_to_delete:
             writer.add_page(reader.pages[idx])
+    if len(writer.pages) == 0:
+        raise ValueError("Cannot delete every page — at least one page must remain in the PDF.")
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()
@@ -232,13 +237,15 @@ def insert_blank_pages(pdf_bytes: bytes, positions: List[int]) -> bytes:
 
     writer = PyPDF2.PdfWriter()
 
-    # We insert blank pages by building the new sequence
-    insert_before = set(p - 1 for p in positions)  # 0-indexed insertion points
+    # Count occurrences per 0-indexed insertion point (not a set) so a
+    # repeated position like "2,2" inserts two blanks instead of collapsing
+    # to one.
+    insert_counts = Counter(p - 1 for p in positions if p <= total)
     # Also handle appending (position = total + 1)
     append_count = sum(1 for p in positions if p > total)
 
     for idx in range(total):
-        if idx in insert_before:
+        for _ in range(insert_counts.get(idx, 0)):
             writer.add_blank_page(width=width, height=height)
         writer.add_page(reader.pages[idx])
 
@@ -318,8 +325,20 @@ def images_to_pdf(image_bytes_list: List[bytes]) -> bytes:
 
     for img_bytes in image_bytes_list:
         img = Image.open(io.BytesIO(img_bytes))
-        # Ensure conversion to RGB format so it fits in PDF standard
-        if img.mode != "RGB":
+        has_transparency = img.mode in ("RGBA", "LA") or (
+            img.mode == "P" and "transparency" in img.info
+        )
+        if has_transparency:
+            # Plain .convert("RGB") drops the alpha channel but keeps
+            # whatever RGB values sit underneath it, which are black for
+            # freshly-created transparent pixels — so transparent PNG
+            # backgrounds (logos, stickers, screenshots) turn solid black
+            # instead of staying white. Composite onto white first.
+            img = img.convert("RGBA")
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[-1])
+            img = background
+        elif img.mode != "RGB":
             img = img.convert("RGB")
         images.append(img)
 
