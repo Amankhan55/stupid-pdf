@@ -38,6 +38,7 @@ import {
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
 import { TOOL_RESTRICTIONS, validateFiles } from "../utils/fileValidation";
+import { formatBytes } from "../utils/format";
 
 // Bundled locally (instead of a version-pinned CDN URL) so the worker always
 // matches the pdfjs-dist version actually resolved by npm, and the app has
@@ -1042,18 +1043,67 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
                 ))}
               </div>
             </div>
-            {compressSavings && compressSavings.originalSize > 0 && (
-              <div className="info-panel" style={{ marginTop: "16px" }}>
-                <div className="info-stat"><div className="stat-value">{(compressSavings.originalSize / 1024).toFixed(0)} KB</div><div className="stat-label">Original Size</div></div>
-                <div className="info-stat"><div className="stat-value">{(compressSavings.compressedSize / 1024).toFixed(0)} KB</div><div className="stat-label">Compressed Size</div></div>
-                <div className="info-stat">
-                  <div className="stat-value" style={{ background: "linear-gradient(135deg, #10b981, #34d399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                    {Math.max(0, Math.round((1 - compressSavings.compressedSize / compressSavings.originalSize) * 100))}%
+            {compressSavings && compressSavings.originalSize > 0 && (() => {
+              const orig = compressSavings.originalSize;
+              const comp = compressSavings.compressedSize;
+              const savedBytes = Math.max(0, orig - comp);
+              const pct = Math.max(0, Math.round((1 - comp / orig) * 100));
+
+              return (
+                <div className="compression-savings-card" role="status" aria-live="polite">
+                  <div className="savings-card-header">
+                    <div className="savings-title">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                      <span>Compression Results</span>
+                    </div>
+                    <span className="savings-badge">
+                      ⚡ {pct}% Smaller
+                    </span>
                   </div>
-                  <div className="stat-label">Size Reduction</div>
+
+                  <div className="savings-grid">
+                    {/* Original Size */}
+                    <div className="savings-stat-box">
+                      <div className="savings-stat-label">Original Size</div>
+                      <div className="savings-stat-value text-muted">
+                        {formatBytes(orig)}
+                      </div>
+                      <div className="savings-stat-sub">Before compression</div>
+                    </div>
+
+                    {/* Arrow Divider */}
+                    <div className="savings-arrow" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </div>
+
+                    {/* Compressed Size */}
+                    <div className="savings-stat-box">
+                      <div className="savings-stat-label">Compressed Size</div>
+                      <div className="savings-stat-value text-primary">
+                        {formatBytes(comp)}
+                      </div>
+                      <div className="savings-stat-sub">After compression</div>
+                    </div>
+
+                    {/* Space Saved */}
+                    <div className="savings-stat-box savings-highlight-box">
+                      <div className="savings-stat-label">Space Saved</div>
+                      <div className="savings-stat-value text-accent">
+                        -{formatBytes(savedBytes)}
+                      </div>
+                      <div className="savings-bar-track">
+                        <div className="savings-bar-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         );
 
@@ -1527,140 +1577,123 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           </div>
         )}
 
-        {/* ── Success Screen ── */}
-        {status === "success" ? (
-          <div className="success-screen" role="status" aria-live="polite" aria-label="Processing complete">
-            <div className="success-icon-wrap" aria-hidden="true">
-              <div className="success-icon-ring" />
-              <div className="success-icon-circle">
-                <svg className="success-check-svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-            </div>
-            <div className="success-title">Done!</div>
-            <div className="success-desc">
-              Your file has been processed and downloaded automatically.
-            </div>
-            <div className="success-actions">
-              <button
-                className="btn btn-primary"
-                onClick={resetState}
-                aria-label="Process another PDF"
-              >
-                {Icon && <Icon width="16" height="16" aria-hidden="true" />}
-                Process Another
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => onSelectTool && onSelectTool("home")}
-                aria-label="Go back to home"
-              >
-                Back to Home
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <FileUpload
-              multiple={toolId === "merge" || toolId === "images-to-pdf"}
-              files={files}
-              setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
-              label={
-                toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
-                : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
-                : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
-                : toolId === "add-pdf" ? "Drop the base PDF here"
-                : "Drop your PDF file here"
-              }
-              showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
-              accept={
-                toolId === "images-to-pdf" ? "image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
-                : toolId === "word-to-pdf" ? ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                : "application/pdf"
-              }
-              restriction={TOOL_RESTRICTIONS[toolId]}
-              onPageInfo={(name, info) => setFilePageInfo((prev) => ({ ...prev, [name]: info }))}
+        <FileUpload
+          multiple={toolId === "merge" || toolId === "images-to-pdf"}
+          files={files}
+          setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
+          label={
+            toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
+            : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
+            : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
+            : toolId === "add-pdf" ? "Drop the base PDF here"
+            : "Drop your PDF file here"
+          }
+          showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
+          accept={
+            toolId === "images-to-pdf" ? "image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
+            : toolId === "word-to-pdf" ? ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            : "application/pdf"
+          }
+          restriction={TOOL_RESTRICTIONS[toolId]}
+          onPageInfo={(name, info) => setFilePageInfo((prev) => ({ ...prev, [name]: info }))}
+        />
+
+        {renderControls()}
+
+        {/* ── Output Filename ── */}
+        <div className="form-group" style={{ marginTop: "24px" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }} aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+            </svg>
+            <span>Output Filename</span>
+            <span style={{ background: "rgba(0,242,254,0.12)", border: "1px solid rgba(0,242,254,0.25)", color: "#a5f3fc", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "99px" }}>Optional</span>
+          </label>
+          <div style={{ position: "relative" }}>
+            <input className="form-input"
+              placeholder={`e.g. my-document  (saves as my-document${outputExt})`}
+              value={outputFilename} onChange={(e) => setOutputFilename(e.target.value)}
+              style={{ paddingRight: "80px" }}
+              disabled={meta.comingSoon}
+              aria-label="Output filename (optional)"
             />
-
-            {renderControls()}
-
-            {/* ── Output Filename ── */}
-            <div className="form-group" style={{ marginTop: "24px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }} aria-hidden="true">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                  <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-                </svg>
-                <span>Output Filename</span>
-                <span style={{ background: "rgba(0,242,254,0.12)", border: "1px solid rgba(0,242,254,0.25)", color: "#a5f3fc", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "99px" }}>Optional</span>
-              </label>
-              <div style={{ position: "relative" }}>
-                <input className="form-input"
-                  placeholder={`e.g. my-document  (saves as my-document${outputExt})`}
-                  value={outputFilename} onChange={(e) => setOutputFilename(e.target.value)}
-                  style={{ paddingRight: "80px" }}
-                  disabled={meta.comingSoon}
-                  aria-label="Output filename (optional)"
-                />
-                {outputFilename.trim() && (
-                  <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }} aria-hidden="true">
-                    {outputExt}
-                  </span>
-                )}
-              </div>
-              <span className="form-hint">Leave blank to use the default filename.</span>
-            </div>
-
-            {/* ── Progress Bar (loading) ── */}
-            {status === "loading" && (
-              <div aria-live="polite" aria-label={message}>
-                <ProgressBar progress={progress} message={message} />
-              </div>
-            )}
-
-            {/* ── Error Status Bar ── */}
-            {status === "error" && <StatusBar status={status} message={message} />}
-
-            <div className="action-bar">
-              <span className="info-text" aria-live="polite">
-                {files.length > 0 ? (
-                  <><strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready</>
-                ) : (
-                  <span className="action-bar-idle-hint">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    Drop a PDF above to get started
-                  </span>
-                )}
+            {outputFilename.trim() && (
+              <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }} aria-hidden="true">
+                {outputExt}
               </span>
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button className="btn btn-secondary" onClick={resetState} aria-label="Reset all fields">Reset</button>
-                <button
-                  className="btn btn-primary btn-lg"
-                  onClick={handleSubmit}
-                  disabled={!canSubmit || meta.comingSoon}
-                  aria-disabled={(!canSubmit || meta.comingSoon) ? "true" : undefined}
-                  aria-label={meta.comingSoon ? "Coming Soon" : actionLabel}
-                >
-                  {status === "loading" ? (
-                    <><span className="spinner" aria-hidden="true" /> Processing…</>
-                  ) : meta.comingSoon ? (
-                    <span>✨ Coming Soon</span>
-                  ) : (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      {Icon && <Icon width="16" height="16" aria-hidden="true" />}
-                      <span>{meta.title}</span>
-                    </div>
-                  )}
-                </button>
-              </div>
-            </div>
-          </>
+            )}
+          </div>
+          <span className="form-hint">Leave blank to use the default filename.</span>
+        </div>
+
+        {/* ── Progress Bar (loading) ── */}
+        {status === "loading" && (
+          <div aria-live="polite" aria-label={message}>
+            <ProgressBar progress={progress} message={message} />
+          </div>
         )}
+
+        {/* ── Success Banner (inline) ── */}
+        {status === "success" && (
+          <div className="status-bar success" role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{message || "Done! Your file has been processed and downloaded automatically."}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatus(null)}
+              aria-label="Dismiss banner"
+              style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "16px", padding: "0 4px", opacity: 0.8 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* ── Error Status Bar ── */}
+        {status === "error" && <StatusBar status={status} message={message} />}
+
+        <div className="action-bar">
+          <span className="info-text" aria-live="polite">
+            {files.length > 0 ? (
+              <><strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready</>
+            ) : (
+              <span className="action-bar-idle-hint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Drop a PDF above to get started
+              </span>
+            )}
+          </span>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button className="btn btn-secondary" onClick={resetState} aria-label="Reset all fields">Reset</button>
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={handleSubmit}
+              disabled={!canSubmit || meta.comingSoon}
+              aria-disabled={(!canSubmit || meta.comingSoon) ? "true" : undefined}
+              aria-label={meta.comingSoon ? "Coming Soon" : actionLabel}
+            >
+              {status === "loading" ? (
+                <><span className="spinner" aria-hidden="true" /> Processing…</>
+              ) : meta.comingSoon ? (
+                <span>✨ Coming Soon</span>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {Icon && <Icon width="16" height="16" aria-hidden="true" />}
+                  <span>{meta.title}</span>
+                </div>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

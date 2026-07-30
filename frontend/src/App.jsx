@@ -68,13 +68,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* Center: Quick Nav */}
+            {/* Center: Quick Nav
             <nav className="footer-center-nav" aria-label="Footer navigation">
               <a href="https://github.com/Amankhan55/stupid-pdf" target="_blank" rel="noreferrer" className="footer-nav-item">GitHub</a>
               <a href="https://github.com/Amankhan55/stupid-pdf/blob/main/README.md" target="_blank" rel="noreferrer" className="footer-nav-item">Changelog</a>
               <span className="footer-nav-item" style={{ color: "var(--text-muted)", cursor: "default" }}>Privacy Policy</span>
               <span className="footer-nav-item" style={{ color: "var(--text-muted)", cursor: "default" }}>Terms</span>
-            </nav>
+            </nav> */}
 
             {/* Right: Social Icons */}
             <div className="footer-social-row">
