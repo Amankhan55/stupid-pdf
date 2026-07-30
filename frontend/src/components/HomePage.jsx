@@ -15,6 +15,9 @@ import {
 } from "./Icons";
 import { formatBytes } from "../utils/format";
 
+// ─── Popular tool IDs (Priority 3 & 4) ───────────────────────────────────────
+const POPULAR_TOOL_IDS = ["merge", "compress", "pdf-to-word", "word-to-pdf", "images-to-pdf", "pdf-to-images"];
+
 export default function HomePage({ onSelect }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -81,6 +84,71 @@ export default function HomePage({ onSelect }) {
     return matchesCategory && matchesQuery;
   });
 
+  // Popular tools (only shown on "all" tab with no search)
+  const showPopularSection = activeCategory === "all" && searchQuery === "";
+  const popularTools = allTools.filter((t) => POPULAR_TOOL_IDS.includes(t.id));
+
+  // Helper to render a single tool card
+  const renderToolCard = (tool, isPopular = false) => {
+    const Icon = tool.icon;
+    const category = getToolCategory(tool.id);
+    const isSoon = tool.comingSoon || ["annotate-pdf", "pdf-to-excel", "pdf-to-word"].includes(tool.id);
+
+    return (
+      <div
+        key={tool.id}
+        className={`tool-card-luxury${isSoon ? " card-coming-soon disabled" : ""}${isPopular && !isSoon ? " card-popular" : ""}`}
+        data-category={category}
+        role="button"
+        tabIndex={isSoon ? -1 : 0}
+        aria-label={isSoon ? `${tool.label} — Coming Soon` : `${tool.label}: ${getToolDescription(tool.id)}`}
+        aria-disabled={isSoon ? "true" : undefined}
+        onClick={() => {
+          if (!isSoon) onSelect(tool.id, heroFile);
+        }}
+        onKeyDown={(e) => {
+          if (!isSoon && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            onSelect(tool.id, heroFile);
+          }
+        }}
+      >
+        <div>
+          <div className="tool-card-top">
+            <div className="card-icon-square">
+              <Icon width="24" height="24" />
+            </div>
+            {isSoon && (
+              <span className="badge-soon">Coming Soon</span>
+            )}
+            {!isSoon && isPopular && (
+              <span className="badge-popular">⭐ Popular</span>
+            )}
+          </div>
+
+          <h3 className="card-title-text">{tool.label}</h3>
+          <p className="card-desc-text">{getToolDescription(tool.id)}</p>
+        </div>
+
+        <div className="tool-card-bottom">
+          <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            {category}
+          </span>
+          {isSoon ? (
+            <span className="card-soon-text">Coming Soon</span>
+          ) : (
+            <div className="action-arrow-circle" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="home-container">
       {/* ─── HERO SPLIT SECTION ─────────────────────────────────────────────── */}
@@ -110,9 +178,10 @@ export default function HomePage({ onSelect }) {
               <div className="hero-cta-group">
                 <button
                   className="btn-hero-primary"
+                  aria-label="Upload a PDF file"
                   onClick={() => heroFileInputRef.current?.click()}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -122,60 +191,36 @@ export default function HomePage({ onSelect }) {
 
                 <button
                   className="btn-hero-secondary"
+                  aria-label="Browse all PDF tools"
                   onClick={() => {
                     const gridEl = document.getElementById("tools-grid-anchor");
                     gridEl?.scrollIntoView({ behavior: "smooth" });
                   }}
                 >
                   <span>Browse Tools</span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <polyline points="19 12 12 19 5 12" />
                   </svg>
                 </button>
               </div>
 
-              {/* Quick Action Floating Chips */}
-              <div className="quick-chips-wrapper">
-                <span className="chips-label">Instant Shortcuts</span>
-                <div className="chips-grid">
-                  <div className="floating-chip" onClick={() => onSelect("merge", heroFile)}>
-                    <span className="chip-icon" style={{ color: "var(--accent-primary)" }}>
-                      <MergeIcon width="16" height="16" />
-                    </span>
-                    <span>Merge</span>
-                  </div>
-
-                  <div className="floating-chip" onClick={() => onSelect("compress", heroFile)}>
-                    <span className="chip-icon" style={{ color: "var(--accent-secondary)" }}>
-                      <CompressIcon width="16" height="16" />
-                    </span>
-                    <span>Compress</span>
-                  </div>
-
-                  <div className="floating-chip" onClick={() => onSelect("pdf-to-word", heroFile)}>
-                    <span className="chip-icon" style={{ color: "var(--accent-blue)" }}>
-                      <PdfToWordIcon width="16" height="16" />
-                    </span>
-                    <span>To Word</span>
-                  </div>
-
-                  <div className="floating-chip" onClick={() => onSelect("pdf-to-images", heroFile)}>
-                    <span className="chip-icon" style={{ color: "var(--accent-amber)" }}>
-                      <PdfToImageIcon width="16" height="16" />
-                    </span>
-                    <span>Images</span>
-                  </div>
-
-                  <div className="floating-chip" onClick={() => onSelect("unlock-pdf", heroFile)}>
-                    <span className="chip-icon" style={{ color: "var(--accent-purple)" }}>
-                      <UnlockIcon width="16" height="16" />
-                    </span>
-                    <span>Unlock</span>
-                  </div>
-                </div>
+              {/* Trust Signals (Priority 10) */}
+              <div className="trust-signals-row" role="list" aria-label="Privacy guarantees">
+                {[
+                  "No account required",
+                  "Files never stored",
+                  "100% Private",
+                  "Open Source",
+                ].map((signal) => (
+                  <span key={signal} className="trust-signal-item" role="listitem">
+                    <span className="trust-signal-check" aria-hidden="true">✓</span>
+                    {signal}
+                  </span>
+                ))}
               </div>
             </div>
+
 
             {/* Right Hero Column: Premium 420px Hero Upload Dropzone Panel */}
             <div className="hero-right-content">
@@ -185,9 +230,18 @@ export default function HomePage({ onSelect }) {
                 onDragOver={(e) => { e.preventDefault(); setHeroDragOver(true); }}
                 onDragLeave={() => setHeroDragOver(false)}
                 onClick={() => !heroFile && heroFileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                aria-label="Upload PDF: drag and drop or click to browse"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (!heroFile) heroFileInputRef.current?.click();
+                  }
+                }}
               >
                 {/* Background Radar Lines */}
-                <div className="radar-bg-lines">
+                <div className="radar-bg-lines" aria-hidden="true">
                   <div className="radar-circle c1"></div>
                   <div className="radar-circle c2"></div>
                   <div className="radar-circle c3"></div>
@@ -196,7 +250,7 @@ export default function HomePage({ onSelect }) {
                 {!heroFile ? (
                   <div className="ref-upload-dropzone">
                     {/* 3D Glassmorphic PDF Graphic with Atomic Light Orbitals */}
-                    <div className="upload-visual-wrapper">
+                    <div className="upload-visual-wrapper" aria-hidden="true">
                       <div className="atomic-core-glow"></div>
                       <div className="atomic-ring atomic-ring-1"></div>
                       <div className="atomic-ring atomic-ring-2"></div>
@@ -205,7 +259,7 @@ export default function HomePage({ onSelect }) {
                       <div className="atomic-node atomic-node-2"></div>
                       <img
                         src="/pdf-hero-icon.png"
-                        alt="3D Animated PDF Glassmorphic Graphic"
+                        alt="PDF document illustration"
                         className="hero-animated-img"
                       />
                     </div>
@@ -219,7 +273,7 @@ export default function HomePage({ onSelect }) {
                     {/* Bottom Dashed Footer Meta */}
                     <div className="ref-upload-footer">
                       <span>Supports: PDF</span>
-                      <span className="ref-dot-sep">•</span>
+                      <span className="ref-dot-sep" aria-hidden="true">•</span>
                       <span>Max file size: 200MB</span>
                     </div>
                   </div>
@@ -227,7 +281,7 @@ export default function HomePage({ onSelect }) {
                   <div className="upload-file-card" onClick={(e) => e.stopPropagation()}>
                     <div className="upload-file-header">
                       <div style={{ display: "flex", alignItems: "center", gap: "12px", overflow: "hidden" }}>
-                        <FileIcon width="28" height="28" style={{ flexShrink: 0, color: "var(--accent-primary)" }} />
+                        <FileIcon width="28" height="28" style={{ flexShrink: 0, color: "var(--accent-primary)" }} aria-hidden="true" />
                         <div style={{ overflow: "hidden" }}>
                           <div className="upload-file-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {heroFile.name}
@@ -241,6 +295,7 @@ export default function HomePage({ onSelect }) {
                         className="remove-btn"
                         onClick={() => setHeroFile(null)}
                         title="Remove file"
+                        aria-label="Remove file"
                       >
                         ✕
                       </button>
@@ -251,34 +306,35 @@ export default function HomePage({ onSelect }) {
                     </div>
 
                     <div className="action-buttons-grid">
-                      <button className="quick-action-btn" onClick={() => onSelect("compress", heroFile)}>
-                        <CompressIcon width="18" height="18" />
+                      <button className="quick-action-btn" aria-label="Compress this PDF" onClick={() => onSelect("compress", heroFile)}>
+                        <CompressIcon width="18" height="18" aria-hidden="true" />
                         <span>Compress</span>
                       </button>
-                      <button className="quick-action-btn" onClick={() => onSelect("merge", heroFile)}>
-                        <MergeIcon width="18" height="18" />
+                      <button className="quick-action-btn" aria-label="Merge PDFs" onClick={() => onSelect("merge", heroFile)}>
+                        <MergeIcon width="18" height="18" aria-hidden="true" />
                         <span>Merge</span>
                       </button>
-                      <button className="quick-action-btn" onClick={() => onSelect("split", heroFile)}>
-                        <SplitIcon width="18" height="18" />
+                      <button className="quick-action-btn" aria-label="Split PDF pages" onClick={() => onSelect("split", heroFile)}>
+                        <SplitIcon width="18" height="18" aria-hidden="true" />
                         <span>Split Pages</span>
                       </button>
-                      <button className="quick-action-btn" onClick={() => onSelect("pdf-to-word", heroFile)}>
-                        <PdfToWordIcon width="18" height="18" />
+                      <button className="quick-action-btn" aria-label="Convert PDF to Word" onClick={() => onSelect("pdf-to-word", heroFile)}>
+                        <PdfToWordIcon width="18" height="18" aria-hidden="true" />
                         <span>To Word</span>
                       </button>
-                      <button className="quick-action-btn" onClick={() => onSelect("pdf-to-images", heroFile)}>
-                        <PdfToImageIcon width="18" height="18" />
+                      <button className="quick-action-btn" aria-label="Convert PDF to Images" onClick={() => onSelect("pdf-to-images", heroFile)}>
+                        <PdfToImageIcon width="18" height="18" aria-hidden="true" />
                         <span>To Images</span>
                       </button>
-                      <button className="quick-action-btn" onClick={() => onSelect("unlock-pdf", heroFile)}>
-                        <UnlockIcon width="18" height="18" />
+                      <button className="quick-action-btn" aria-label="Unlock PDF" onClick={() => onSelect("unlock-pdf", heroFile)}>
+                        <UnlockIcon width="18" height="18" aria-hidden="true" />
                         <span>Unlock</span>
                       </button>
                     </div>
 
                     <button
                       className="change-file-btn"
+                      aria-label="Choose a different file"
                       onClick={() => heroFileInputRef.current?.click()}
                     >
                       <span>Choose Different File</span>
@@ -292,6 +348,7 @@ export default function HomePage({ onSelect }) {
                   accept="application/pdf,.docx,image/*"
                   style={{ display: "none" }}
                   onChange={handleHeroFileSelect}
+                  aria-hidden="true"
                 />
               </div>
             </div>
@@ -303,7 +360,7 @@ export default function HomePage({ onSelect }) {
       <section className="max-width-wrapper tools-grid-section" id="tools-grid-anchor">
         <div className="nav-filters-bar">
           {/* Glass Pill Category Filter Tabs */}
-          <div className="category-pills">
+          <div className="category-pills" role="tablist" aria-label="Filter tools by category">
             {[
               { id: "all", label: "All Tools" },
               { id: "processing", label: "Processing" },
@@ -316,6 +373,9 @@ export default function HomePage({ onSelect }) {
                 key={cat.id}
                 className={`category-pill-btn${activeCategory === cat.id ? " active" : ""}`}
                 onClick={() => setActiveCategory(cat.id)}
+                role="tab"
+                aria-selected={activeCategory === cat.id}
+                aria-controls="tools-grid-anchor"
               >
                 {cat.label}
               </button>
@@ -324,92 +384,75 @@ export default function HomePage({ onSelect }) {
 
           {/* Search Box with '/' Shortcut Indicator */}
           <div className="search-wrapper">
-            <svg className="search-icon-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="search-icon-left" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
               ref={searchInputRef}
               type="text"
+              id="tools-search"
               className="search-input-field"
               placeholder="Search tools (e.g. merge, compress, word)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search PDF tools"
+              autoComplete="off"
             />
-            <span className="shortcut-badge-right">/</span>
+            <span className="shortcut-badge-right" aria-hidden="true">/</span>
           </div>
         </div>
 
+        {/* Popular Tools Section (Priority 4) — shown only on "All" with no search */}
+        {showPopularSection && (
+          <div className="popular-tools-section">
+            <div className="popular-tools-heading">
+              <h2 className="popular-tools-title">
+                <span aria-hidden="true">⭐</span> Popular Tools
+              </h2>
+            </div>
+            <div className="popular-tools-grid" role="list" aria-label="Popular PDF tools">
+              {popularTools.map((tool) => renderToolCard(tool, true))}
+            </div>
+          </div>
+        )}
+
         {/* Section Heading */}
         <div className="section-heading-row">
-          <h2 className="section-title">PDF Toolkit Suite</h2>
-          <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "600" }}>
-            Showing {filteredTools.length} tool{filteredTools.length !== 1 ? "s" : ""}
+          <h2 className="section-title">{showPopularSection ? "All Tools" : "PDF Toolkit Suite"}</h2>
+          <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "600" }} aria-live="polite">
+            {filteredTools.length} Tool{filteredTools.length !== 1 ? "s" : ""} Available
           </span>
         </div>
 
         {/* Tool Cards Grid */}
-        <div className="tools-grid-layout">
-          {filteredTools.map((tool) => {
-            const Icon = tool.icon;
-            const category = getToolCategory(tool.id);
-            const isSoon = tool.comingSoon || ["annotate-pdf", "pdf-to-excel", "pdf-to-word"].includes(tool.id);
-
-            return (
-              <div
-                key={tool.id}
-                className={`tool-card-luxury${isSoon ? " card-coming-soon disabled" : ""}`}
-                data-category={category}
-                style={isSoon ? { cursor: "not-allowed", opacity: 0.65 } : {}}
-                onClick={() => {
-                  if (!isSoon) {
-                    onSelect(tool.id, heroFile);
-                  }
-                }}
+        <div className="tools-grid-layout" role="list" aria-label="All PDF tools">
+          {filteredTools.length === 0 ? (
+            /* Empty state (Priority 18) */
+            <div className="empty-search-state" role="status" aria-live="polite">
+              <div className="empty-search-icon" aria-hidden="true">🔍</div>
+              <div className="empty-search-title">We searched everywhere.</div>
+              <div className="empty-search-desc">Couldn't find that tool.</div>
+              <button
+                className="empty-search-clear-btn"
+                onClick={() => { setSearchQuery(""); setActiveCategory("all"); }}
+                aria-label="Clear search and reset filters"
               >
-                <div>
-                  <div className="tool-card-top">
-                    <div className="card-icon-square">
-                      <Icon width="24" height="24" />
-                    </div>
-                    {isSoon && (
-                      <span className="badge-coming-soon">
-                        ✨ Coming Soon
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="card-title-text">{tool.label}</h3>
-                  <p className="card-desc-text">{getToolDescription(tool.id)}</p>
-                </div>
-
-                <div className="tool-card-bottom">
-                  <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    {category}
-                  </span>
-                  {isSoon ? (
-                    <span className="card-soon-text">Under Polish</span>
-                  ) : (
-                    <div className="action-arrow-circle">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                        <polyline points="12 5 19 12 12 19" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                Clear Search
+              </button>
+            </div>
+          ) : (
+            filteredTools.map((tool) => renderToolCard(tool, POPULAR_TOOL_IDS.includes(tool.id) && showPopularSection === false))
+          )}
         </div>
       </section>
 
       {/* ─── EXACT REFERENCE MATCH FEATURE SURFACE STRIP ───────────────────── */}
       <section className="max-width-wrapper" style={{ marginBottom: "40px", position: "relative" }}>
-        <div className="feature-surface-strip">
+        <div className="feature-surface-strip" role="list" aria-label="Key features">
           {/* Block 1: Lightning Fast */}
-          <div className="feature-block-item">
-            <div className="feature-raw-icon">
+          <div className="feature-block-item" role="listitem">
+            <div className="feature-raw-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#14F195" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
@@ -421,8 +464,8 @@ export default function HomePage({ onSelect }) {
           </div>
 
           {/* Block 2: Privacy First */}
-          <div className="feature-block-item">
-            <div className="feature-raw-icon">
+          <div className="feature-block-item" role="listitem">
+            <div className="feature-raw-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 <line x1="12" y1="8" x2="12" y2="14" />
@@ -436,8 +479,8 @@ export default function HomePage({ onSelect }) {
           </div>
 
           {/* Block 3: Stateless Engine */}
-          <div className="feature-block-item">
-            <div className="feature-raw-icon">
+          <div className="feature-block-item" role="listitem">
+            <div className="feature-raw-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00C9FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
@@ -451,8 +494,8 @@ export default function HomePage({ onSelect }) {
           </div>
 
           {/* Block 4: Open Source */}
-          <div className="feature-block-item">
-            <div className="feature-raw-icon">
+          <div className="feature-block-item" role="listitem">
+            <div className="feature-raw-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00C9FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="16 18 22 12 16 6" />
                 <polyline points="8 6 2 12 8 18" />
@@ -461,12 +504,12 @@ export default function HomePage({ onSelect }) {
             </div>
             <div className="feature-info-col">
               <div className="feature-block-title">Open Source</div>
-              <div className="feature-block-desc">Built with love. Contributions are always welcome.</div>
+              <div className="feature-block-desc">Built with ❤️. Contributions are always welcome.</div>
             </div>
           </div>
 
           {/* ─── Bottom-Left Green & Bottom-Right Purple Vector Wireframe Curves ─ */}
-          <div className="corner-wave-overlay">
+          <div className="corner-wave-overlay" aria-hidden="true">
             <svg width="100%" height="100%" viewBox="0 0 1200 120" preserveAspectRatio="none" fill="none">
               <defs>
                 <linearGradient id="green-wire-grad" x1="0%" y1="100%" x2="40%" y2="0%">
@@ -515,33 +558,33 @@ export default function HomePage({ onSelect }) {
   );
 }
 
-// Helpers for short grid descriptions
+// ─── Personality-driven tool descriptions (Priority 8) ───────────────────────
 function getToolDescription(id) {
   const descriptions = {
-    "merge": "Combine multiple PDFs into a single file seamlessly.",
-    "split": "Divide a document into multiple parts or sections.",
-    "compress": "Losslessly optimize file sizes for fast sharing.",
-    "extract-pages": "Select and save specific pages to a new PDF.",
-    "delete-pages": "Permanently remove redundant pages from a file.",
-    "rearrange-pages": "Drag & drop to re-order pages visually.",
-    "rotate-pages": "Turn page rotations by 90, 180, or 270 degrees.",
-    "duplicate-pages": "Copy specific pages immediately after themselves.",
-    "reverse": "Flip the entire page structure in reverse order.",
-    "insert-blank": "Surgically add blank empty pages anywhere.",
-    "add-pdf": "Insert an entire PDF directly inside another file.",
-    "pdf-to-images": "Convert PDF pages into PNG or JPG images packed in ZIP.",
-    "images-to-pdf": "Combine PNG/JPG images into a single PDF.",
-    "word-to-pdf": "Convert Word docx files into styled PDF format.",
-    "pdf-to-word": "Convert PDFs back into editable Word docx files.",
-    "unlock-pdf": "Remove password protection from encrypted PDFs.",
-    "protect-pdf": "Encrypt your PDF with AES-256 password protection.",
-    "add-watermark": "Overlay custom diagonal text watermark on every page.",
-    "add-page-numbers": "Auto-stamp page numbers at header or footer position.",
-    "extract-text": "Pull all readable text and download as a .txt file.",
-    "extract-images": "Extract all embedded images into a ZIP archive.",
-    "pdf-to-excel": "Extract tables from PDF into an editable .xlsx spreadsheet.",
-    "add-signature": "Draw or upload a signature and embed it on any page.",
-    "annotate-pdf": "Add text boxes and highlight overlays to any page area.",
+    "merge":            "No drama. Just one PDF.",
+    "split":            "One PDF too many? Split it up.",
+    "compress":         "Shrink it. Keep it beautiful.",
+    "extract-pages":    "Pick the pages you need, ditch the rest.",
+    "delete-pages":     "Surgically remove the pages you don't want.",
+    "rearrange-pages":  "Drag & drop to get pages in the right order.",
+    "rotate-pages":     "Flip it 90°, 180°, or 270°. Your call.",
+    "duplicate-pages":  "Need a copy of that page? Done.",
+    "reverse":          "Read it backwards. Why not?",
+    "insert-blank":     "Add breathing room anywhere in your PDF.",
+    "add-pdf":          "Stitch another PDF right inside this one.",
+    "pdf-to-images":    "Every page becomes a crisp image. Packed in ZIP.",
+    "images-to-pdf":    "Photos in. PDF out. Done.",
+    "word-to-pdf":      "From .docx to perfect PDF instantly.",
+    "pdf-to-word":      "Your PDF wants to be editable again.",
+    "unlock-pdf":       "Forgot the password? We've got you.",
+    "protect-pdf":      "Lock it down with AES-256.",
+    "add-watermark":    "Stamp your name on every page. Bold.",
+    "add-page-numbers": "Never lose track of a page again.",
+    "extract-text":     "Your PDF has words. Let's free them.",
+    "extract-images":   "Pull all embedded images into a ZIP.",
+    "pdf-to-excel":     "Tables in PDF? Extract them to .xlsx.",
+    "add-signature":    "Draw or upload a signature and embed it.",
+    "annotate-pdf":     "Highlight, comment, and mark up any page.",
   };
   return descriptions[id] || "Fast, stateless browser processing.";
 }

@@ -12,6 +12,7 @@ export default function FileUpload({
   showInfo = true,
   accept = "application/pdf",
   restriction = null,
+  onPageInfo = null,   // optional callback: (name, info) => void
 }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
@@ -23,20 +24,15 @@ export default function FileUpload({
     const rawArray = Array.from(incomingFiles || []);
     if (!rawArray.length) return;
 
-    // Perform strict validation if restriction prop is provided
     if (restriction) {
       const check = validateFiles(rawArray, restriction);
-      if (!check.valid) {
-        setErrorMsg(check.error);
-        return;
-      }
+      if (!check.valid) { setErrorMsg(check.error); return; }
     }
 
     const toAdd = multiple ? rawArray : [rawArray[0]];
     const combined = multiple ? [...files, ...toAdd] : toAdd;
 
-    // Validate combined array length if maxFiles specified
-    if (restriction && restriction.maxFiles && combined.length > restriction.maxFiles) {
+    if (restriction?.maxFiles && combined.length > restriction.maxFiles) {
       setErrorMsg(`Too many files! Maximum ${restriction.maxFiles} files allowed.`);
       return;
     }
@@ -48,6 +44,7 @@ export default function FileUpload({
         try {
           const info = await getPdfInfo(f);
           setPageInfo((prev) => ({ ...prev, [f.name]: info }));
+          onPageInfo?.(f.name, info);
         } catch {
           // silently ignore if backend not running or non-pdf
         }
@@ -61,25 +58,27 @@ export default function FileUpload({
     processFiles(e.dataTransfer.files);
   }
 
-  function handleDragOver(e) {
-    e.preventDefault();
-    setDragOver(true);
-  }
-
-  function handleDragLeave() {
-    setDragOver(false);
-  }
-
-  function handleChange(e) {
-    processFiles(e.target.files);
-    e.target.value = "";
-  }
+  function handleDragOver(e) { e.preventDefault(); setDragOver(true); }
+  function handleDragLeave() { setDragOver(false); }
+  function handleChange(e) { processFiles(e.target.files); e.target.value = ""; }
 
   function removeFile(idx) {
     setErrorMsg(null);
-    const updated = files.filter((_, i) => i !== idx);
-    setFiles(updated);
+    setFiles(files.filter((_, i) => i !== idx));
   }
+
+  // Derive badge labels from restriction or accept type
+  const formatBadge = restriction?.label
+    ? restriction.label.split("/")[0].toUpperCase()
+    : accept.includes("pdf") ? "PDF" : accept.includes("image") ? "Images" : ".DOCX";
+
+  const sizeBadge = restriction?.maxSizeMB
+    ? `Max ${restriction.maxSizeMB} MB`
+    : "Max 200 MB";
+
+  const countBadge = restriction?.maxFiles && restriction.maxFiles > 1
+    ? `Up to ${restriction.maxFiles} files`
+    : null;
 
   return (
     <div>
@@ -89,9 +88,23 @@ export default function FileUpload({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        aria-label={`${label}. Click or press Enter to browse files.`}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
       >
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
-          <UploadCloudIcon style={{ color: errorMsg ? "var(--accent-danger, #f43f5e)" : "var(--accent-start)" }} />
+          <span className="upload-icon-animated">
+            <UploadCloudIcon
+              style={{ color: errorMsg ? "var(--accent-danger, #f43f5e)" : "var(--accent-start)" }}
+              aria-hidden="true"
+            />
+          </span>
         </div>
         <h3>{label}</h3>
         <p>
@@ -99,21 +112,12 @@ export default function FileUpload({
           <span>browse</span> to choose
         </p>
 
-        {restriction ? (
-          <p className="upload-limit-text">
-            Allowed: <strong>{restriction.label || accept}</strong>
-            {restriction.maxSizeMB && <> · Max size: <strong>{restriction.maxSizeMB} MB</strong></>}
-            {restriction.maxFiles && restriction.maxFiles > 1 && <> · Max files: <strong>{restriction.maxFiles}</strong></>}
-          </p>
-        ) : (
-          <p style={{ marginTop: "6px" }}>
-            {accept === "application/pdf"
-              ? "PDF files only"
-              : accept === "image/*"
-              ? "Image files only (PNG/JPG)"
-              : "Word documents only (.docx)"}
-          </p>
-        )}
+        {/* Badge pills instead of plain text */}
+        <div className="upload-meta-badges">
+          <span className="upload-meta-badge">{formatBadge}</span>
+          <span className="upload-meta-badge">{sizeBadge}</span>
+          {countBadge && <span className="upload-meta-badge">{countBadge}</span>}
+        </div>
 
         <input
           ref={inputRef}
@@ -122,29 +126,30 @@ export default function FileUpload({
           multiple={multiple}
           style={{ display: "none" }}
           onChange={handleChange}
+          aria-hidden="true"
         />
       </div>
 
       {/* ── Validation Error Banner ── */}
       {errorMsg && (
-        <div className="upload-error-pill">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <div className="upload-error-pill" role="alert">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <span>{errorMsg}</span>
-          <button type="button" onClick={() => setErrorMsg(null)} className="upload-error-dismiss">×</button>
+          <button type="button" onClick={() => setErrorMsg(null)} className="upload-error-dismiss" aria-label="Dismiss error">×</button>
         </div>
       )}
 
       {files.length > 0 && (
-        <div className="file-list">
+        <div className="file-list" role="list" aria-label="Uploaded files">
           {files.map((file, idx) => {
             const info = pageInfo[file.name];
             return (
-              <div key={idx} className="file-item">
-                <span className="file-icon" style={{ display: "flex", color: "var(--accent-start)" }}>
+              <div key={idx} className="file-item" role="listitem">
+                <span className="file-icon" style={{ display: "flex", color: "var(--accent-start)" }} aria-hidden="true">
                   <FileIcon width="18" height="18" />
                 </span>
                 <div className="file-info">
@@ -155,16 +160,14 @@ export default function FileUpload({
                   </div>
                 </div>
                 {info && (
-                  <span className="file-badge">{info.page_count}p</span>
+                  <span className="file-badge" aria-label={`${info.page_count} pages`}>{info.page_count}p</span>
                 )}
                 <button
                   type="button"
                   className="remove-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFile(idx);
-                  }}
+                  onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
                   title="Remove"
+                  aria-label={`Remove ${file.name}`}
                 >
                   ✕
                 </button>

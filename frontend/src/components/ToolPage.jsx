@@ -744,9 +744,12 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
     initialFile ? (Array.isArray(initialFile) ? initialFile : [initialFile]) : []
   );
   const [files2, setFiles2] = useState([]);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState(0);
+
+  // Page info fetched from FileUpload's onPageInfo callback
+  const [filePageInfo, setFilePageInfo] = useState({}); // { [filename]: { page_count } }
 
   // Form inputs — existing
   const [splitAt, setSplitAt] = useState("");
@@ -797,6 +800,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
 
   function resetState() {
     setFiles([]); setFiles2([]); setStatus(null); setMessage(""); setProgress(0);
+    setFilePageInfo({});
     setSplitAt(""); setPages(""); setAngle("90"); setTimes("1"); setPositions("");
     setAddPosition("1"); setRearrangeOrder([]); setTotalPages(0);
     setCompressLevel("medium"); setCompressSavings(null); setOutputFilename("");
@@ -822,26 +826,47 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
     setRearrangeOrder(Array.from({ length: count }, (_, i) => i + 1));
   }
 
+  // ─── Step-by-step progress messages ────────────────────────────────────────
+  const PROGRESS_STEPS = [
+    { at:  0, msg: "Uploading PDF…" },
+    { at: 20, msg: "Reading document…" },
+    { at: 42, msg: "Processing pages…" },
+    { at: 62, msg: "Applying changes…" },
+    { at: 78, msg: "Generating output…" },
+    { at: 92, msg: "Almost done…" },
+  ];
+
+  function getStepMessage(pct) {
+    let msg = PROGRESS_STEPS[0].msg;
+    for (const step of PROGRESS_STEPS) {
+      if (pct >= step.at) msg = step.msg;
+    }
+    return msg;
+  }
+
   // ─── Smooth progress animation ─────────────────────────────────────────────
   function startProgressAnimation() {
     setProgress(0);
-    // After upload reaches 50%, simulate server processing from 50→90
     let fake = 50;
     progressTimerRef.current = setInterval(() => {
-      fake += (90 - fake) * 0.04; // exponential approach to 90
-      setProgress(Math.min(fake, 90));
+      fake += (90 - fake) * 0.04;
+      const clamped = Math.min(fake, 90);
+      setProgress(clamped);
+      setMessage(getStepMessage(clamped));
     }, 80);
   }
 
   function finishProgress() {
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     setProgress(100);
+    setMessage("Complete!");
   }
 
   function onUploadProgress(ev) {
     if (ev.total) {
-      const uploadPct = (ev.loaded / ev.total) * 50; // Upload = 0→50%
+      const uploadPct = (ev.loaded / ev.total) * 50;
       setProgress(uploadPct);
+      setMessage(getStepMessage(uploadPct));
       if (uploadPct >= 49) startProgressAnimation();
     }
   }
@@ -849,30 +874,85 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
   useEffect(() => () => { if (progressTimerRef.current) clearInterval(progressTimerRef.current); }, []);
 
   async function handleSubmit() {
-    if (files.length === 0) { setStatus("error"); setMessage("Please upload a PDF file first."); return; }
-    setStatus("loading"); setMessage("Processing your PDF…"); setProgress(0);
+    // ── Pre-flight Form Validations ─────────────────────────────────────────
+    if (files.length === 0) {
+      setStatus("error");
+      setMessage("Please upload a PDF file first.");
+      return;
+    }
+
+    // Tool-specific pre-flight checks before starting progress animation
+    try {
+      switch (toolId) {
+        case "merge":
+          if (files.length < 2) throw new Error("Please upload at least 2 PDF files to merge.");
+          break;
+        case "split":
+          if (!splitAt.trim()) throw new Error("Please enter page numbers to split at (e.g. 3,6).");
+          break;
+        case "extract-pages":
+          if (!pages.trim()) throw new Error("Please enter page numbers to extract (e.g. 1, 3, 5).");
+          break;
+        case "delete-pages":
+          if (!pages.trim()) throw new Error("Please enter page numbers to delete (e.g. 2, 4).");
+          break;
+        case "rearrange-pages":
+          if (rearrangeOrder.length === 0) throw new Error("Please enter total page count and set page order.");
+          break;
+        case "insert-blank":
+          if (!positions.trim()) throw new Error("Please enter page positions for blank pages (e.g. 1, 4).");
+          break;
+        case "duplicate-pages":
+          if (!times || parseInt(times) < 1) throw new Error("Please enter a valid number of copies (1 or more).");
+          break;
+        case "add-pdf":
+          if (files2.length === 0) throw new Error("Please upload the secondary PDF file to insert.");
+          if (!addPosition || parseInt(addPosition) < 1) throw new Error("Please enter a valid page position (1 or greater).");
+          break;
+        case "unlock-pdf":
+          if (!pdfPassword.trim()) throw new Error("Please enter the PDF password to unlock.");
+          break;
+        case "protect-pdf":
+          if (!protectPassword.trim()) throw new Error("Please enter a password.");
+          if (protectPassword !== protectConfirm) throw new Error("Passwords do not match. Please re-enter.");
+          break;
+        case "add-watermark":
+          if (!watermarkText.trim()) throw new Error("Please enter watermark text.");
+          break;
+        case "add-signature":
+          if (!sigFile) throw new Error("Please draw or upload your signature.");
+          break;
+        case "annotate-pdf":
+          if (annotations.length === 0) throw new Error("Please add at least one annotation.");
+          break;
+        default:
+          break;
+      }
+    } catch (valErr) {
+      setStatus("error");
+      setMessage(valErr.message);
+      return;
+    }
+
+    // ── All pre-flight checks passed: start processing ─────────────────────
+    setStatus("loading"); setMessage("Uploading PDF…"); setProgress(0);
     startProgressAnimation();
 
     try {
       switch (toolId) {
         case "merge":
-          if (files.length < 2) throw new Error("Please upload at least 2 PDF files.");
           await mergePdfs(files, outputFilename, onUploadProgress); break;
         case "split":
-          if (!splitAt.trim()) throw new Error("Please enter page numbers to split at.");
           await splitPdf(files[0], splitAt.trim(), outputFilename, onUploadProgress); break;
         case "compress": {
           const savings = await compressPdf(files[0], compressLevel, outputFilename, onUploadProgress);
           setCompressSavings(savings); break;
         }
         case "extract-pages":
-          if (!pages.trim()) throw new Error("Please enter page numbers to extract.");
           await extractPages(files[0], pages.trim(), outputFilename, onUploadProgress); break;
         case "delete-pages":
-          if (!pages.trim()) throw new Error("Please enter page numbers to delete.");
           await deletePages(files[0], pages.trim(), outputFilename, onUploadProgress); break;
         case "rearrange-pages":
-          if (rearrangeOrder.length === 0) throw new Error("Please upload a PDF and set page order.");
           await rearrangePages(files[0], rearrangeOrder.join(","), outputFilename, onUploadProgress); break;
         case "rotate-pages":
           await rotatePages(files[0], pages.trim(), parseInt(angle), outputFilename, onUploadProgress); break;
@@ -881,10 +961,8 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         case "reverse":
           await reversePdf(files[0], outputFilename, onUploadProgress); break;
         case "insert-blank":
-          if (!positions.trim()) throw new Error("Please enter page positions for blank pages.");
           await insertBlankPages(files[0], positions.trim(), outputFilename, onUploadProgress); break;
         case "add-pdf":
-          if (files2.length === 0) throw new Error("Please upload the PDF to insert.");
           await addPdfToExisting(files[0], files2[0], parseInt(addPosition), outputFilename, onUploadProgress); break;
         case "pdf-to-images":
           await pdfToImages(files[0], imageFormat, outputFilename, onUploadProgress); break;
@@ -896,13 +974,9 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           await pdfToWord(files[0], outputFilename, onUploadProgress); break;
         case "unlock-pdf":
           await unlockPdf(files[0], pdfPassword, outputFilename, onUploadProgress); break;
-        // ─── New tools ───────────────────────────────────────────────────────
         case "protect-pdf":
-          if (!protectPassword.trim()) throw new Error("Please enter a password.");
-          if (protectPassword !== protectConfirm) throw new Error("Passwords do not match.");
           await protectPdf(files[0], protectPassword, outputFilename, onUploadProgress); break;
         case "add-watermark":
-          if (!watermarkText.trim()) throw new Error("Please enter watermark text.");
           await addWatermark(files[0], watermarkText, watermarkOpacity, watermarkAngle, watermarkFontSize, watermarkColor, outputFilename, onUploadProgress); break;
         case "add-page-numbers":
           await addPageNumbers(files[0], pageNumPosition, pageNumFontSize, pageNumStart, pageNumPrefix, outputFilename, onUploadProgress); break;
@@ -913,10 +987,8 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         case "pdf-to-excel":
           await pdfToExcel(files[0], outputFilename, onUploadProgress); break;
         case "add-signature":
-          if (!sigFile) throw new Error("Please draw or upload your signature.");
           await addSignature(files[0], sigFile, sigPageNum, sigX, sigY, sigWidth, sigHeight, outputFilename, onUploadProgress); break;
         case "annotate-pdf":
-          if (annotations.length === 0) throw new Error("Please add at least one annotation.");
           await annotatePdf(files[0], annotations, outputFilename, onUploadProgress); break;
         default:
           throw new Error("Unknown tool.");
@@ -989,8 +1061,43 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         return (
           <div className="form-group">
             <label>Split Before Pages</label>
-            <input className="form-input" placeholder="e.g. 3, 6  (split before page 3 and 6)" value={splitAt} onChange={(e) => setSplitAt(e.target.value)} />
-            <span className="form-hint">Comma-separated page numbers. E.g. "3,6" on a 9-page PDF creates parts: 1-2, 3-5, 6-9.</span>
+            {/* Quick presets */}
+            <div className="split-presets" role="group" aria-label="Split presets">
+              <span className="split-preset-label">Presets:</span>
+              {[
+                { label: "Every page", value: (files[0] ? Array.from({ length: (filePageInfo[files[0]?.name]?.page_count || 10) - 1 }, (_, i) => i + 2).join(",") : ""), title: "Split each page into its own file" },
+                { label: "Every 2",    value: "", title: "Split into groups of 2 pages", compute: (n) => Array.from({ length: Math.floor(n / 2) }, (_, i) => (i + 1) * 2 + 1).filter(v => v <= n).join(",") },
+                { label: "Every 5",    value: "", title: "Split into groups of 5 pages", compute: (n) => Array.from({ length: Math.floor(n / 5) }, (_, i) => (i + 1) * 5 + 1).filter(v => v <= n).join(",") },
+                { label: "First half", value: "", title: "Split into two equal halves", compute: (n) => String(Math.ceil(n / 2) + 1) },
+              ].map(({ label, value, title, compute }) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="split-preset-btn"
+                  title={title}
+                  onClick={() => {
+                    const n = filePageInfo[files[0]?.name]?.page_count || 10;
+                    setSplitAt(compute ? (compute(n) || "") : value);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              className="form-input"
+              placeholder="e.g. 3, 6  (split before page 3 and 6)"
+              value={splitAt}
+              onChange={(e) => setSplitAt(e.target.value)}
+              aria-label="Page numbers to split at"
+            />
+            <span className="form-hint">
+              Comma-separated page numbers.&nbsp;
+              <strong style={{ color: "var(--text-secondary)" }}>Examples:</strong>&nbsp;
+              <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>3,6</code>&nbsp;
+              <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>1-5</code>&nbsp;
+              <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>5-10</code>
+            </span>
           </div>
         );
 
@@ -1362,12 +1469,18 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
 
   const Icon = meta.icon;
 
+  // ─── Derived action label ───────────────────────────────────────────────────
+  const actionLabel = (() => {
+    const toolTitles = { merge: "Merge PDFs", split: "Split PDF", compress: "Compress PDF" };
+    return meta.title;
+  })();
+
   return (
     <div key={toolId}>
       {/* Mobile Tool Header */}
       <div className="mobile-tool-header">
-        <button className="mobile-back-btn" onClick={() => onSelectTool && onSelectTool("home")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <button className="mobile-back-btn" onClick={() => onSelectTool && onSelectTool("home")} aria-label="Back to home">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>
           </svg>
           <span>Back</span>
@@ -1375,18 +1488,36 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         <span className="mobile-tool-title">{meta.title}</span>
       </div>
 
-      <div className="page-header">
-        <div className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          {Icon && <Icon width="12" height="12" />} <span>{meta.tag}</span>
+      {/* ── Compact Header (2-3 lines max) ── */}
+      <div className="compact-page-header">
+        <div className="compact-header-top">
+          <nav className="breadcrumb" aria-label="Breadcrumb">
+            <button
+              className="breadcrumb-home"
+              onClick={() => onSelectTool && onSelectTool("home")}
+              aria-label="Go to Home"
+            >
+              Home
+            </button>
+            <span className="breadcrumb-sep" aria-hidden="true">›</span>
+            <span className="breadcrumb-current" aria-current="page">{meta.title}</span>
+          </nav>
+          <div className="compact-tag">
+            {Icon && <Icon width="11" height="11" aria-hidden="true" />}
+            <span>{meta.tag}</span>
+          </div>
         </div>
-        <h2>{meta.title}</h2>
-        <p>{meta.desc}</p>
+
+        <div className="compact-header-title-row">
+          <h2>{meta.title}</h2>
+          <p>{meta.desc}</p>
+        </div>
       </div>
 
       <div className="card">
         {meta.comingSoon && (
           <div className="coming-soon-banner">
-            <div className="coming-soon-banner-icon">✨</div>
+            <div className="coming-soon-banner-icon" aria-hidden="true">✨</div>
             <div>
               <div className="coming-soon-banner-title">Feature Coming Soon</div>
               <div className="coming-soon-banner-desc">
@@ -1396,80 +1527,140 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           </div>
         )}
 
-        <FileUpload
-          multiple={toolId === "merge" || toolId === "images-to-pdf"}
-          files={files}
-          setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
-          label={
-            toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
-            : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
-            : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
-            : toolId === "add-pdf" ? "Drop the base PDF here"
-            : "Drop your PDF file here"
-          }
-          showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
-          accept={
-            toolId === "images-to-pdf" ? "image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
-            : toolId === "word-to-pdf" ? ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            : "application/pdf"
-          }
-          restriction={TOOL_RESTRICTIONS[toolId]}
-        />
-
-        {renderControls()}
-
-        {/* ── Output Filename ── */}
-        <div className="form-group" style={{ marginTop: "24px" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }}>
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
-            </svg>
-            <span>Output Filename</span>
-            <span style={{ background: "rgba(0,242,254,0.12)", border: "1px solid rgba(0,242,254,0.25)", color: "#a5f3fc", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "99px" }}>Optional</span>
-          </label>
-          <div style={{ position: "relative" }}>
-            <input className="form-input"
-              placeholder={`e.g. my-document  (saves as my-document${outputExt})`}
-              value={outputFilename} onChange={(e) => setOutputFilename(e.target.value)}
-              style={{ paddingRight: "80px" }}
-              disabled={meta.comingSoon}
+        {/* ── Success Screen ── */}
+        {status === "success" ? (
+          <div className="success-screen" role="status" aria-live="polite" aria-label="Processing complete">
+            <div className="success-icon-wrap" aria-hidden="true">
+              <div className="success-icon-ring" />
+              <div className="success-icon-circle">
+                <svg className="success-check-svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+            </div>
+            <div className="success-title">Done!</div>
+            <div className="success-desc">
+              Your file has been processed and downloaded automatically.
+            </div>
+            <div className="success-actions">
+              <button
+                className="btn btn-primary"
+                onClick={resetState}
+                aria-label="Process another PDF"
+              >
+                {Icon && <Icon width="16" height="16" aria-hidden="true" />}
+                Process Another
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => onSelectTool && onSelectTool("home")}
+                aria-label="Go back to home"
+              >
+                Back to Home
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <FileUpload
+              multiple={toolId === "merge" || toolId === "images-to-pdf"}
+              files={files}
+              setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
+              label={
+                toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
+                : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
+                : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
+                : toolId === "add-pdf" ? "Drop the base PDF here"
+                : "Drop your PDF file here"
+              }
+              showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
+              accept={
+                toolId === "images-to-pdf" ? "image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp"
+                : toolId === "word-to-pdf" ? ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                : "application/pdf"
+              }
+              restriction={TOOL_RESTRICTIONS[toolId]}
+              onPageInfo={(name, info) => setFilePageInfo((prev) => ({ ...prev, [name]: info }))}
             />
-            {outputFilename.trim() && (
-              <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }}>
-                {outputExt}
-              </span>
+
+            {renderControls()}
+
+            {/* ── Output Filename ── */}
+            <div className="form-group" style={{ marginTop: "24px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }} aria-hidden="true">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span>Output Filename</span>
+                <span style={{ background: "rgba(0,242,254,0.12)", border: "1px solid rgba(0,242,254,0.25)", color: "#a5f3fc", fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: "99px" }}>Optional</span>
+              </label>
+              <div style={{ position: "relative" }}>
+                <input className="form-input"
+                  placeholder={`e.g. my-document  (saves as my-document${outputExt})`}
+                  value={outputFilename} onChange={(e) => setOutputFilename(e.target.value)}
+                  style={{ paddingRight: "80px" }}
+                  disabled={meta.comingSoon}
+                  aria-label="Output filename (optional)"
+                />
+                {outputFilename.trim() && (
+                  <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }} aria-hidden="true">
+                    {outputExt}
+                  </span>
+                )}
+              </div>
+              <span className="form-hint">Leave blank to use the default filename.</span>
+            </div>
+
+            {/* ── Progress Bar (loading) ── */}
+            {status === "loading" && (
+              <div aria-live="polite" aria-label={message}>
+                <ProgressBar progress={progress} message={message} />
+              </div>
             )}
-          </div>
-          <span className="form-hint">Leave blank to use the default filename.</span>
-        </div>
 
-        {/* ── Progress Bar (shown during loading) ── */}
-        {status === "loading" && <ProgressBar progress={progress} message={message} />}
+            {/* ── Error Status Bar ── */}
+            {status === "error" && <StatusBar status={status} message={message} />}
 
-        {/* ── Status Bar (shown after completion) ── */}
-        <StatusBar status={status} message={message} />
-
-        <div className="action-bar">
-          <span className="info-text">
-            {files.length > 0 ? <><strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready</> : "No files selected"}
-          </span>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button className="btn btn-secondary" onClick={resetState}>Reset</button>
-            <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={!canSubmit || meta.comingSoon}>
-              {status === "loading" ? (
-                <><span className="spinner" /> Processing…</>
-              ) : meta.comingSoon ? (
-                <span>✨ Coming Soon</span>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {Icon && <Icon width="16" height="16" />}
-                  <span>{meta.title}</span>
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
+            <div className="action-bar">
+              <span className="info-text" aria-live="polite">
+                {files.length > 0 ? (
+                  <><strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready</>
+                ) : (
+                  <span className="action-bar-idle-hint">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Drop a PDF above to get started
+                  </span>
+                )}
+              </span>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button className="btn btn-secondary" onClick={resetState} aria-label="Reset all fields">Reset</button>
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={handleSubmit}
+                  disabled={!canSubmit || meta.comingSoon}
+                  aria-disabled={(!canSubmit || meta.comingSoon) ? "true" : undefined}
+                  aria-label={meta.comingSoon ? "Coming Soon" : actionLabel}
+                >
+                  {status === "loading" ? (
+                    <><span className="spinner" aria-hidden="true" /> Processing…</>
+                  ) : meta.comingSoon ? (
+                    <span>✨ Coming Soon</span>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {Icon && <Icon width="16" height="16" aria-hidden="true" />}
+                      <span>{meta.title}</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
