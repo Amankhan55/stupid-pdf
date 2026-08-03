@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import ToolPage from "./components/ToolPage";
 import HomePage from "./components/HomePage";
 import Navbar from "./components/Navbar";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 
@@ -35,6 +36,8 @@ export default function App() {
         <main style={{ flex: 1 }}>
           <HomePage onSelect={handleSelectTool} />
         </main>
+      ) : activeTool === "privacy-policy" ? (
+        <PrivacyPolicy onBack={() => handleSelectTool("home")} />
       ) : (
         <div className="app-layout">
           <Sidebar active={activeTool} onSelect={handleSelectTool} />
@@ -62,6 +65,18 @@ export default function App() {
               </span>
               <span className="footer-pill-tag">
                 🔒 Stateless &amp; Private
+              </span>
+            </div>
+
+            <div className="footer-center-nav">
+              <span
+                className="footer-nav-item"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleSelectTool("privacy-policy")}
+                onKeyDown={(e) => e.key === "Enter" && handleSelectTool("privacy-policy")}
+              >
+                Privacy Policy
               </span>
             </div>
 
