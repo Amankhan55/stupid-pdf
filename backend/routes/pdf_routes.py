@@ -72,8 +72,20 @@ MAX_MERGE_FILE_SIZE = 25 * 1024 * 1024      # 25 MB
 MAX_SIGNATURE_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
 MAX_IMAGES_TO_PDF_FILES = 25
 
+# Magic-byte signatures, checked in addition to the file extension so a
+# renamed/mislabeled upload can't reach the parsing libraries below.
+MAGIC_VALIDATORS = {
+    "pdf": lambda b: b.startswith(b"%PDF-"),
+    "docx": lambda b: b.startswith(b"PK\x03\x04"),
+    "png": lambda b: b.startswith(b"\x89PNG\r\n\x1a\n"),
+    "jpg": lambda b: b.startswith(b"\xff\xd8\xff"),
+    "jpeg": lambda b: b.startswith(b"\xff\xd8\xff"),
+    "webp": lambda b: b[0:4] == b"RIFF" and b[8:12] == b"WEBP",
+}
+
+
 def validate_file_bytes(file_bytes: bytes, filename: str, max_size: int = MAX_PDF_SIZE_BYTES, allowed_exts: list = ["pdf"]):
-    """Validate file size and extension on backend."""
+    """Validate file size, extension, and content (magic bytes) on backend."""
     if len(file_bytes) > max_size:
         max_mb = int(max_size / (1024 * 1024))
         size_mb = len(file_bytes) / (1024 * 1024)
@@ -87,6 +99,12 @@ def validate_file_bytes(file_bytes: bytes, filename: str, max_size: int = MAX_PD
         raise HTTPException(
             status_code=400,
             detail=f'Invalid file format for "{filename}". Allowed formats: {exts_str}.'
+        )
+    validator = MAGIC_VALIDATORS.get(ext)
+    if validator and not validator(file_bytes):
+        raise HTTPException(
+            status_code=400,
+            detail=f'File "{filename}" does not look like a valid {ext.upper()} file.'
         )
 
 
