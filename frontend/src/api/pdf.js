@@ -23,6 +23,22 @@ function withExt(name, ext) {
   return trimmed.endsWith(`.${ext}`) ? trimmed : `${trimmed}.${ext}`;
 }
 
+/** POST a batch of files + extra form fields; downloads a single native-ext file if there's
+ *  exactly one input, or a .zip if there are several (mirrors the backend's batch response). */
+async function downloadBatch(endpoint, files, extraFields, nativeExt, filename, onProgress) {
+  const fileArray = Array.isArray(files) ? files : [files];
+  const form = new FormData();
+  fileArray.forEach((f) => form.append("files", f));
+  for (const [key, value] of Object.entries(extraFields)) {
+    form.append(key, value);
+  }
+  const isMulti = fileArray.length > 1;
+  await downloadBlob(
+    api.post(endpoint, form, { responseType: "blob", onUploadProgress: onProgress }),
+    isMulti ? withExt(filename, "zip") : withExt(filename, nativeExt)
+  );
+}
+
 async function downloadBlob(promise, filename) {
   const res = await promise;
   const url = URL.createObjectURL(new Blob([res.data]));
@@ -60,15 +76,19 @@ export async function splitPdf(file, splitAt, filename = "", onProgress) {
   await downloadBlob(api.post("/split", form, { responseType: "blob", onUploadProgress: onProgress }), dlName);
 }
 
-export async function compressPdf(file, level = "medium", filename = "", onProgress) {
-  const form = buildForm({ file, level });
+export async function compressPdf(files, level = "medium", filename = "", onProgress) {
+  const fileArray = Array.isArray(files) ? files : [files];
+  const form = new FormData();
+  fileArray.forEach((f) => form.append("files", f));
+  form.append("level", level);
   const res = await api.post("/compress", form, { responseType: "blob", onUploadProgress: onProgress });
   const originalSize = parseInt(res.headers["x-original-size"] || "0");
   const compressedSize = parseInt(res.headers["x-compressed-size"] || "0");
+  const isMulti = fileArray.length > 1;
   const url = URL.createObjectURL(new Blob([res.data]));
   const a = document.createElement("a");
   a.href = url;
-  a.download = withExt(filename, "pdf");
+  a.download = isMulti ? withExt(filename, "zip") : withExt(filename, "pdf");
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -100,12 +120,8 @@ export async function rearrangePages(file, order, filename = "", onProgress) {
   );
 }
 
-export async function rotatePages(file, pages, angle, filename = "", onProgress) {
-  const form = buildForm({ file, pages, angle });
-  await downloadBlob(
-    api.post("/rotate-pages", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "pdf")
-  );
+export async function rotatePages(files, pages, angle, filename = "", onProgress) {
+  await downloadBatch("/rotate-pages", files, { pages, angle }, "pdf", filename, onProgress);
 }
 
 export async function duplicatePages(file, pages, times, filename = "", onProgress) {
@@ -140,8 +156,11 @@ export async function addPdfToExisting(baseFile, newFile, position, filename = "
   );
 }
 
-export async function pdfToImages(file, format = "png", filename = "", onProgress) {
-  const form = buildForm({ file, format });
+export async function pdfToImages(files, format = "png", filename = "", onProgress) {
+  const fileArray = Array.isArray(files) ? files : [files];
+  const form = new FormData();
+  fileArray.forEach((f) => form.append("files", f));
+  form.append("format", format);
   await downloadBlob(
     api.post("/pdf-to-images", form, { responseType: "blob", onUploadProgress: onProgress }),
     withExt(filename, "zip")
@@ -157,66 +176,56 @@ export async function imagesToPdf(files, filename = "", onProgress) {
   );
 }
 
-export async function wordToPdf(file, filename = "", onProgress) {
-  const form = buildForm({ file });
-  await downloadBlob(
-    api.post("/word-to-pdf", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "pdf")
-  );
+export async function wordToPdf(files, filename = "", onProgress) {
+  await downloadBatch("/word-to-pdf", files, {}, "pdf", filename, onProgress);
 }
 
-export async function pdfToWord(file, filename = "", onProgress) {
-  const form = buildForm({ file });
-  await downloadBlob(
-    api.post("/pdf-to-word", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "docx")
-  );
+export async function pdfToWord(files, filename = "", onProgress) {
+  await downloadBatch("/pdf-to-word", files, {}, "docx", filename, onProgress);
 }
 
-export async function unlockPdf(file, password = "", filename = "", onProgress) {
-  const form = buildForm({ file, password });
-  await downloadBlob(
-    api.post("/unlock-pdf", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "pdf")
-  );
+export async function unlockPdf(files, password = "", filename = "", onProgress) {
+  await downloadBatch("/unlock-pdf", files, { password }, "pdf", filename, onProgress);
 }
 
 // ─── NEW API FUNCTIONS ─────────────────────────────────────────────────────────
 
-export async function protectPdf(file, password, filename = "", onProgress) {
-  const form = buildForm({ file, password });
-  await downloadBlob(
-    api.post("/protect-pdf", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "pdf")
+export async function protectPdf(files, password, filename = "", onProgress) {
+  await downloadBatch("/protect-pdf", files, { password }, "pdf", filename, onProgress);
+}
+
+export async function addWatermark(files, text, opacity, angle, fontSize, color, filename = "", onProgress) {
+  await downloadBatch(
+    "/add-watermark", files,
+    { text, opacity, angle, font_size: fontSize, color },
+    "pdf", filename, onProgress
   );
 }
 
-export async function addWatermark(file, text, opacity, angle, fontSize, color, filename = "", onProgress) {
-  const form = buildForm({ file, text, opacity, angle, font_size: fontSize, color });
-  await downloadBlob(
-    api.post("/add-watermark", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "pdf")
+export async function addPageNumbers(files, position, fontSize, startNumber, prefix, filename = "", onProgress) {
+  await downloadBatch(
+    "/add-page-numbers", files,
+    { position, font_size: fontSize, start_number: startNumber, prefix },
+    "pdf", filename, onProgress
   );
 }
 
-export async function addPageNumbers(file, position, fontSize, startNumber, prefix, filename = "", onProgress) {
-  const form = buildForm({ file, position, font_size: fontSize, start_number: startNumber, prefix });
-  await downloadBlob(
-    api.post("/add-page-numbers", form, { responseType: "blob", onUploadProgress: onProgress }),
-    withExt(filename, "pdf")
-  );
-}
-
-export async function extractText(file, filename = "", onProgress) {
-  const form = buildForm({ file });
+export async function extractText(files, filename = "", onProgress) {
+  const fileArray = Array.isArray(files) ? files : [files];
+  const form = new FormData();
+  fileArray.forEach((f) => form.append("files", f));
+  const isMulti = fileArray.length > 1;
+  const fallback = isMulti ? "extracted_text.zip" : "extracted_text.txt";
   await downloadBlob(
     api.post("/extract-text", form, { responseType: "blob", onUploadProgress: onProgress }),
-    filename && filename.trim() ? withExt(filename, "txt") : "extracted_text.txt"
+    filename && filename.trim() ? withExt(filename, isMulti ? "zip" : "txt") : fallback
   );
 }
 
-export async function extractImages(file, filename = "", onProgress) {
-  const form = buildForm({ file });
+export async function extractImages(files, filename = "", onProgress) {
+  const fileArray = Array.isArray(files) ? files : [files];
+  const form = new FormData();
+  fileArray.forEach((f) => form.append("files", f));
   await downloadBlob(
     api.post("/extract-images", form, { responseType: "blob", onUploadProgress: onProgress }),
     filename && filename.trim() ? withExt(filename, "zip") : "extracted_images.zip"
@@ -250,6 +259,14 @@ export async function annotatePdf(file, annotations, filename = "", onProgress) 
   const form = buildForm({ file, annotations: JSON.stringify(annotations) });
   await downloadBlob(
     api.post("/annotate-pdf", form, { responseType: "blob", onUploadProgress: onProgress }),
+    withExt(filename, "pdf")
+  );
+}
+
+export async function redactPdf(file, redactions, filename = "", onProgress) {
+  const form = buildForm({ file, redactions: JSON.stringify(redactions) });
+  await downloadBlob(
+    api.post("/redact-pdf", form, { responseType: "blob", onUploadProgress: onProgress }),
     withExt(filename, "pdf")
   );
 }

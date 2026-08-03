@@ -25,6 +25,7 @@ import {
   pdfToExcel,
   addSignature,
   annotatePdf,
+  redactPdf,
 } from "../api/pdf";
 import {
   MergeIcon, SplitIcon, CompressIcon, ExtractIcon, DeleteIcon,
@@ -33,7 +34,7 @@ import {
   WordToPdfIcon, PdfToWordIcon, UnlockIcon,
   ProtectIcon, WatermarkIcon, PageNumbersIcon,
   ExtractTextIcon, ExtractImagesIcon, ExcelIcon,
-  SignatureIcon, AnnotateIcon,
+  SignatureIcon, AnnotateIcon, RedactIcon,
 } from "./Icons";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
@@ -372,18 +373,28 @@ function PdfPageCanvas({ file, pageNum = 1, onDimensions }) {
 }
 
 // ─── Signature Position Preview ───────────────────────────────────────────────
-function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, height, onChange }) {
+function SignaturePositionPreview({ pdfFile, pageNum = 1, onPageChange, sigFile, x, y, width, height, onChange, onResize }) {
   const wrapRef = useRef(null);
   const isDraggingRef = useRef(false);
+  const isResizingRef = useRef(false);
+  const draggedRef = useRef(false); // true once real movement happened, to suppress the trailing click-to-place
   const dragOffsetRef = useRef({ dx: 0, dy: 0 });
   const [sigUrl, setSigUrl] = useState(null);
   const [livePos, setLivePos] = useState({ x, y });
+  const [liveSize, setLiveSize] = useState({ width, height });
   const [pageDims, setPageDims] = useState({ width: 595, height: 842, totalPages: 1 });
 
   const PDF_W = pageDims.width;
   const PDF_H = pageDims.height;
 
   useEffect(() => { setLivePos({ x, y }); }, [x, y]);
+  useEffect(() => { setLiveSize({ width, height }); }, [width, height]);
+
+  // Keep the requested page in range once we know the real page count
+  // (e.g. after switching to a shorter PDF).
+  useEffect(() => {
+    if (pageNum > pageDims.totalPages) onPageChange(pageDims.totalPages);
+  }, [pageDims.totalPages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sigFile) { setSigUrl(null); return; }
@@ -407,10 +418,12 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
   }
 
   function handlePageClick(e) {
-    if (isDraggingRef.current) return;
+    // A native "click" also fires right after releasing a drag — ignore that
+    // one so the box doesn't jump to re-center on the release point.
+    if (draggedRef.current) { draggedRef.current = false; return; }
     const pos  = clientToPdf(e);
-    const newX = clamp(pos.x - width  / 2, PDF_W - width);
-    const newY = clamp(pos.y - height / 2, PDF_H - height);
+    const newX = clamp(pos.x - liveSize.width  / 2, PDF_W - liveSize.width);
+    const newY = clamp(pos.y - liveSize.height / 2, PDF_H - liveSize.height);
     setLivePos({ x: newX, y: newY });
     onChange(newX, newY);
   }
@@ -421,36 +434,99 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
     const pos = clientToPdf(e);
     dragOffsetRef.current = { dx: pos.x - livePos.x, dy: pos.y - livePos.y };
     isDraggingRef.current = true;
+    draggedRef.current = false;
+  }
+
+  function handleResizeMouseDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    isResizingRef.current = true;
   }
 
   function handleMouseMove(e) {
+    // Defense-in-depth: if the mouse button was released somewhere that
+    // never reached our mouseup handler (see the window-level listener
+    // below), don't keep dragging/resizing on every subsequent hover.
+    if (e.buttons === 0 && (isDraggingRef.current || isResizingRef.current)) {
+      isDraggingRef.current = false;
+      isResizingRef.current = false;
+      return;
+    }
+    if (isResizingRef.current) {
+      const pos = clientToPdf(e);
+      const newW = Math.max(20, clamp(pos.x - livePos.x, PDF_W - livePos.x));
+      const newH = Math.max(20, clamp(pos.y - livePos.y, PDF_H - livePos.y));
+      setLiveSize({ width: newW, height: newH });
+      return;
+    }
     if (!isDraggingRef.current) return;
+    draggedRef.current = true;
     const pos  = clientToPdf(e);
-    const newX = clamp(pos.x - dragOffsetRef.current.dx, PDF_W - width);
-    const newY = clamp(pos.y - dragOffsetRef.current.dy, PDF_H - height);
+    const newX = clamp(pos.x - dragOffsetRef.current.dx, PDF_W - liveSize.width);
+    const newY = clamp(pos.y - dragOffsetRef.current.dy, PDF_H - liveSize.height);
     setLivePos({ x: newX, y: newY });
   }
 
   function handleMouseUp() {
+    if (isResizingRef.current) {
+      isResizingRef.current = false;
+      onResize(liveSize.width, liveSize.height);
+      return;
+    }
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     onChange(livePos.x, livePos.y);
   }
 
+  // Catch a mouseup/touchend that lands outside the preview box entirely
+  // (e.g. a fast drag released past the element's edge) — without this,
+  // isDraggingRef/isResizingRef can get stuck "true" forever, and every
+  // later mouse movement over the preview keeps dragging or resizing the
+  // box with no button held.
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  });
+
   const pctX = (livePos.x / PDF_W) * 100;
   const pctY = (livePos.y / PDF_H) * 100;
-  const pctW = (width     / PDF_W) * 100;
-  const pctH = (height    / PDF_H) * 100;
+  const pctW = (liveSize.width  / PDF_W) * 100;
+  const pctH = (liveSize.height / PDF_H) * 100;
 
   return (
     <div className="sig-pos-preview-wrapper">
       <div className="sig-pos-preview-header">
-        <span className="sig-pos-preview-label">📄 Click on actual page to place · Drag to reposition</span>
-        <span className="sig-coords-live-badge">
-          <span className="coords-axis">X</span>{Math.round(livePos.x)}
-          <span className="coords-sep">·</span>
-          <span className="coords-axis">Y</span>{Math.round(livePos.y)}
-        </span>
+        <span className="sig-pos-preview-label">📄 Click to place · Drag box to move · Drag corner to resize</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="sig-coords-live-badge">
+            <span className="coords-axis">X</span>{Math.round(livePos.x)}
+            <span className="coords-sep">·</span>
+            <span className="coords-axis">Y</span>{Math.round(livePos.y)}
+          </span>
+          <div className="ann-page-nav">
+            <button
+              type="button"
+              className="ann-nav-btn"
+              disabled={pageNum <= 1}
+              onClick={() => onPageChange(Math.max(1, pageNum - 1))}
+            >
+              ‹
+            </button>
+            <span>Page {pageNum} of {pageDims.totalPages}</span>
+            <button
+              type="button"
+              className="ann-nav-btn"
+              disabled={pageNum >= pageDims.totalPages}
+              onClick={() => onPageChange(Math.min(pageDims.totalPages, pageNum + 1))}
+            >
+              ›
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="sig-page-outer">
@@ -487,6 +563,7 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
               }}
               onMouseDown={handleSigMouseDown}
               onTouchStart={handleSigMouseDown}
+              onClick={(e) => e.stopPropagation()}
             >
               {sigUrl ? (
                 <img
@@ -506,6 +583,12 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
                   <circle cx="2" cy="8" r="1"/><circle cx="5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/>
                 </svg>
               </div>
+              <div
+                className="sig-resize-handle"
+                title="Drag to resize"
+                onMouseDown={handleResizeMouseDown}
+                onTouchStart={handleResizeMouseDown}
+              />
             </div>
           </div>
         </div>
@@ -515,6 +598,10 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
 }
 
 // ─── Annotate PDF Live Preview Component ─────────────────────────────────────
+// NOTE: RedactPositionPreview (below) is a trimmed copy of this component's
+// drag-rectangle mechanics (clientToPdf conversion, mouse/touch handlers,
+// the <5px accidental-click threshold). If you fix a bug here — especially
+// in touch handling or the rubberband math — check RedactPositionPreview too.
 function AnnotatePositionPreview({
   pdfFile,
   pageNum,
@@ -553,6 +640,7 @@ function AnnotatePositionPreview({
   }
 
   function handleMouseMove(e) {
+    if (e.buttons === 0 && isDrawingRef.current) { isDrawingRef.current = false; setDrawingBox(null); return; }
     if (!isDrawingRef.current) return;
     const pos = clientToPdf(e);
     setDrawingBox((prev) => prev ? { ...prev, currentX: pos.x, currentY: pos.y } : null);
@@ -595,6 +683,17 @@ function AnnotatePositionPreview({
       });
     }
   }
+
+  // See the matching note in SignaturePositionPreview — a mouseup released
+  // outside this element would otherwise leave isDrawingRef stuck "true".
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  });
 
   const currentPageAnns = annotations
     .map((ann, originalIdx) => ({ ...ann, originalIdx }))
@@ -711,6 +810,182 @@ function AnnotatePositionPreview({
 }
 
 
+// Trimmed copy of AnnotatePositionPreview's drag-rectangle mechanics (see the
+// note above that component) — redaction has no type/color/content choice,
+// every rect is a solid black permanent removal, not a translucent overlay.
+function RedactPositionPreview({ pdfFile, pageNum, onPageChange, redactions, onAddRedaction, onRemoveRedaction }) {
+  const wrapRef = useRef(null);
+  const [pageDims, setPageDims] = useState({ width: 595, height: 842, totalPages: 1 });
+  const [drawingBox, setDrawingBox] = useState(null);
+  const isDrawingRef = useRef(false);
+
+  const PDF_W = pageDims.width;
+  const PDF_H = pageDims.height;
+
+  function clientToPdf(e) {
+    if (!wrapRef.current) return { x: 0, y: 0 };
+    const rect = wrapRef.current.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return {
+      x: Math.max(0, Math.min(PDF_W, ((src.clientX - rect.left) / rect.width) * PDF_W)),
+      y: Math.max(0, Math.min(PDF_H, ((src.clientY - rect.top) / rect.height) * PDF_H)),
+    };
+  }
+
+  function handleMouseDown(e) {
+    if (e.target.closest('.ann-overlay-box') || e.target.closest('.ann-page-nav')) return;
+    e.preventDefault();
+    const pos = clientToPdf(e);
+    isDrawingRef.current = true;
+    setDrawingBox({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
+  }
+
+  function handleMouseMove(e) {
+    if (e.buttons === 0 && isDrawingRef.current) { isDrawingRef.current = false; setDrawingBox(null); return; }
+    if (!isDrawingRef.current) return;
+    const pos = clientToPdf(e);
+    setDrawingBox((prev) => prev ? { ...prev, currentX: pos.x, currentY: pos.y } : null);
+  }
+
+  function handleMouseUp() {
+    if (!isDrawingRef.current || !drawingBox) return;
+    isDrawingRef.current = false;
+
+    const x1 = Math.min(drawingBox.startX, drawingBox.currentX);
+    const y1 = Math.min(drawingBox.startY, drawingBox.currentY);
+    const x2 = Math.max(drawingBox.startX, drawingBox.currentX);
+    const y2 = Math.max(drawingBox.startY, drawingBox.currentY);
+
+    setDrawingBox(null);
+
+    // Ignore tiny accidental clicks (<5px)
+    if (Math.abs(x2 - x1) < 5 && Math.abs(y2 - y1) < 5) return;
+
+    onAddRedaction({
+      page: pageNum,
+      x: Math.round(x1),
+      y: Math.round(y1),
+      x2: Math.round(x2),
+      y2: Math.round(y2),
+    });
+  }
+
+  // See the matching note in SignaturePositionPreview — a mouseup released
+  // outside this element would otherwise leave isDrawingRef stuck "true".
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  });
+
+  const currentPageRedactions = redactions
+    .map((r, originalIdx) => ({ ...r, originalIdx }))
+    .filter((r) => r.page === pageNum);
+
+  return (
+    <div className="ann-preview-wrapper">
+      <div className="ann-preview-header">
+        <span className="ann-preview-label">
+          ⬛ Click &amp; drag on the PDF page to mark an area for permanent redaction
+        </span>
+        <div className="ann-page-nav">
+          <button
+            type="button"
+            className="ann-nav-btn"
+            disabled={pageNum <= 1}
+            onClick={() => onPageChange(Math.max(1, pageNum - 1))}
+          >
+            ‹
+          </button>
+          <span>Page {pageNum} of {pageDims.totalPages}</span>
+          <button
+            type="button"
+            className="ann-nav-btn"
+            disabled={pageNum >= pageDims.totalPages}
+            onClick={() => onPageChange(Math.min(pageDims.totalPages, pageNum + 1))}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div className="sig-page-outer">
+        <div
+          ref={wrapRef}
+          className="sig-page-inner"
+          style={{ paddingTop: `${(PDF_H / PDF_W) * 100}%`, cursor: "crosshair" }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleMouseDown}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
+        >
+          <div className="sig-page-content">
+            {pdfFile ? (
+              <PdfPageCanvas file={pdfFile} pageNum={pageNum} onDimensions={setPageDims} />
+            ) : (
+              <div className="sig-page-lines">
+                <div className="sig-line sig-line-h" style={{ top: '10%' }} />
+                <div className="sig-line sig-line-h" style={{ top: '90%' }} />
+              </div>
+            )}
+
+            {/* Live drawing box rubberband */}
+            {drawingBox && (
+              <div
+                className="ann-rubberband"
+                style={{
+                  left: `${(Math.min(drawingBox.startX, drawingBox.currentX) / PDF_W) * 100}%`,
+                  top: `${(Math.min(drawingBox.startY, drawingBox.currentY) / PDF_H) * 100}%`,
+                  width: `${(Math.abs(drawingBox.currentX - drawingBox.startX) / PDF_W) * 100}%`,
+                  height: `${(Math.abs(drawingBox.currentY - drawingBox.startY) / PDF_H) * 100}%`,
+                  borderColor: "#000000",
+                  background: "rgba(0,0,0,0.55)",
+                }}
+              >
+                <span className="ann-box-coords">
+                  {Math.round(Math.min(drawingBox.startX, drawingBox.currentX))}, {Math.round(Math.min(drawingBox.startY, drawingBox.currentY))}
+                </span>
+              </div>
+            )}
+
+            {/* Existing page redactions overlay */}
+            {currentPageRedactions.map((r) => (
+              <div
+                key={r.originalIdx}
+                className="ann-overlay-box"
+                style={{
+                  left: `${(r.x / PDF_W) * 100}%`,
+                  top: `${(r.y / PDF_H) * 100}%`,
+                  width: `${((r.x2 - r.x) / PDF_W) * 100}%`,
+                  height: `${((r.y2 - r.y) / PDF_H) * 100}%`,
+                  background: "#000000",
+                  borderColor: "#000000",
+                }}
+              >
+                <button
+                  type="button"
+                  className="ann-box-del-btn"
+                  onClick={(e) => { e.stopPropagation(); onRemoveRedaction(r.originalIdx); }}
+                  title="Remove redaction"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
 const TOOL_META = {
   "merge":            { icon: MergeIcon,         title: "Merge PDFs",          desc: "Combine multiple PDF files into a single document in the order you upload them.",                     tag: "Combine" },
@@ -737,7 +1012,19 @@ const TOOL_META = {
   "pdf-to-excel":     { icon: ExcelIcon,         title: "PDF to Excel",        desc: "Extract tables from your PDF and convert them to an editable .xlsx spreadsheet.",                   tag: "Convert", comingSoon: true },
   "add-signature":    { icon: SignatureIcon,     title: "Add Signature",       desc: "Draw or upload a signature and embed it onto a specific page of your PDF.",                        tag: "Editing" },
   "annotate-pdf":     { icon: AnnotateIcon,      title: "Annotate PDF",        desc: "Add text annotations and highlight color overlays to specific areas of your PDF.",                  tag: "Editing", comingSoon: true },
+  "redact-pdf":       { icon: RedactIcon,        title: "Redact PDF",          desc: "Permanently black out and strip sensitive text or regions — unlike a watermark, the underlying content is deleted, not just covered.", tag: "Security" },
 };
+
+// Tools where the same operation can be run across many files at once,
+// returning a single result for one file or a ZIP for several. Excludes
+// page-index operations (extract/delete/rearrange/etc — not naturally
+// "same settings across arbitrary documents") and tools needing per-document
+// visual placement (signature/annotate/redact).
+const BATCH_TOOL_IDS = [
+  "compress", "rotate-pages", "add-watermark", "add-page-numbers",
+  "protect-pdf", "unlock-pdf", "extract-text", "extract-images",
+  "pdf-to-images", "pdf-to-word", "word-to-pdf",
+];
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
 export default function ToolPage({ toolId, initialFile, onSelectTool }) {
@@ -795,6 +1082,8 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
   const [annY2, setAnnY2] = useState(120);
   const [annContent, setAnnContent] = useState("");
   const [annColor, setAnnColor] = useState("#FFFF00");
+  const [redactions, setRedactions] = useState([]);
+  const [redactPage, setRedactPage] = useState(1);
 
   const progressTimerRef = useRef(null);
   const meta = TOOL_META[toolId] || {};
@@ -815,6 +1104,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
     setAnnotations([]); setAnnType("highlight"); setAnnPage(1);
     setAnnX(50); setAnnY(100); setAnnX2(300); setAnnY2(120);
     setAnnContent(""); setAnnColor("#FFFF00");
+    setRedactions([]); setRedactPage(1);
   }
 
   function handleRearrangeFiles(newFiles) {
@@ -874,6 +1164,17 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
 
   useEffect(() => () => { if (progressTimerRef.current) clearInterval(progressTimerRef.current); }, []);
 
+  // Redactions are keyed to a specific page of a specific file — if the user
+  // swaps in a different file, stale rectangles from the old file would
+  // otherwise silently redact the wrong region of the new one.
+  useEffect(() => {
+    if (toolId === "redact-pdf") {
+      setRedactions([]);
+      setRedactPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolId, files[0]?.name, files[0]?.size]);
+
   async function handleSubmit() {
     // ── Pre-flight Form Validations ─────────────────────────────────────────
     if (files.length === 0) {
@@ -926,6 +1227,9 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         case "annotate-pdf":
           if (annotations.length === 0) throw new Error("Please add at least one annotation.");
           break;
+        case "redact-pdf":
+          if (redactions.length === 0) throw new Error("Please mark at least one area to redact.");
+          break;
         default:
           break;
       }
@@ -946,7 +1250,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         case "split":
           await splitPdf(files[0], splitAt.trim(), outputFilename, onUploadProgress); break;
         case "compress": {
-          const savings = await compressPdf(files[0], compressLevel, outputFilename, onUploadProgress);
+          const savings = await compressPdf(files, compressLevel, outputFilename, onUploadProgress);
           setCompressSavings(savings); break;
         }
         case "extract-pages":
@@ -956,7 +1260,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         case "rearrange-pages":
           await rearrangePages(files[0], rearrangeOrder.join(","), outputFilename, onUploadProgress); break;
         case "rotate-pages":
-          await rotatePages(files[0], pages.trim(), parseInt(angle), outputFilename, onUploadProgress); break;
+          await rotatePages(files, pages.trim(), parseInt(angle), outputFilename, onUploadProgress); break;
         case "duplicate-pages":
           await duplicatePages(files[0], pages.trim(), parseInt(times), outputFilename, onUploadProgress); break;
         case "reverse":
@@ -966,31 +1270,33 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         case "add-pdf":
           await addPdfToExisting(files[0], files2[0], parseInt(addPosition), outputFilename, onUploadProgress); break;
         case "pdf-to-images":
-          await pdfToImages(files[0], imageFormat, outputFilename, onUploadProgress); break;
+          await pdfToImages(files, imageFormat, outputFilename, onUploadProgress); break;
         case "images-to-pdf":
           await imagesToPdf(files, outputFilename, onUploadProgress); break;
         case "word-to-pdf":
-          await wordToPdf(files[0], outputFilename, onUploadProgress); break;
+          await wordToPdf(files, outputFilename, onUploadProgress); break;
         case "pdf-to-word":
-          await pdfToWord(files[0], outputFilename, onUploadProgress); break;
+          await pdfToWord(files, outputFilename, onUploadProgress); break;
         case "unlock-pdf":
-          await unlockPdf(files[0], pdfPassword, outputFilename, onUploadProgress); break;
+          await unlockPdf(files, pdfPassword, outputFilename, onUploadProgress); break;
         case "protect-pdf":
-          await protectPdf(files[0], protectPassword, outputFilename, onUploadProgress); break;
+          await protectPdf(files, protectPassword, outputFilename, onUploadProgress); break;
         case "add-watermark":
-          await addWatermark(files[0], watermarkText, watermarkOpacity, watermarkAngle, watermarkFontSize, watermarkColor, outputFilename, onUploadProgress); break;
+          await addWatermark(files, watermarkText, watermarkOpacity, watermarkAngle, watermarkFontSize, watermarkColor, outputFilename, onUploadProgress); break;
         case "add-page-numbers":
-          await addPageNumbers(files[0], pageNumPosition, pageNumFontSize, pageNumStart, pageNumPrefix, outputFilename, onUploadProgress); break;
+          await addPageNumbers(files, pageNumPosition, pageNumFontSize, pageNumStart, pageNumPrefix, outputFilename, onUploadProgress); break;
         case "extract-text":
-          await extractText(files[0], outputFilename, onUploadProgress); break;
+          await extractText(files, outputFilename, onUploadProgress); break;
         case "extract-images":
-          await extractImages(files[0], outputFilename, onUploadProgress); break;
+          await extractImages(files, outputFilename, onUploadProgress); break;
         case "pdf-to-excel":
           await pdfToExcel(files[0], outputFilename, onUploadProgress); break;
         case "add-signature":
           await addSignature(files[0], sigFile, sigPageNum, sigX, sigY, sigWidth, sigHeight, outputFilename, onUploadProgress); break;
         case "annotate-pdf":
           await annotatePdf(files[0], annotations, outputFilename, onUploadProgress); break;
+        case "redact-pdf":
+          await redactPdf(files[0], redactions, outputFilename, onUploadProgress); break;
         default:
           throw new Error("Unknown tool.");
       }
@@ -1257,6 +1563,9 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
             <label>PDF Password</label>
             <input className="form-input" type="password" placeholder="Enter the PDF password (leave blank if only owner-locked)" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} />
             <span className="form-hint">Enter the password used to lock this PDF. Leave blank to attempt removing owner-only restrictions.</span>
+            {files.length > 1 && (
+              <span className="form-hint">This same password will be tried on all {files.length} files — any that don't match will be listed as failures in the downloaded ZIP.</span>
+            )}
           </div>
         );
 
@@ -1280,6 +1589,9 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
                 <span className="form-hint" style={{ color: "var(--accent-danger, #f43f5e)" }}>Passwords do not match.</span>
               )}
               <span className="form-hint">Your PDF will be encrypted with AES-256.</span>
+              {files.length > 1 && (
+                <span className="form-hint">This same password will be applied to all {files.length} files.</span>
+              )}
             </div>
           </>
         );
@@ -1404,12 +1716,14 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
               <SignaturePositionPreview
                 pdfFile={files[0]}
                 pageNum={sigPageNum}
+                onPageChange={setSigPageNum}
                 sigFile={sigFile}
                 x={sigX}
                 y={sigY}
                 width={sigWidth}
                 height={sigHeight}
                 onChange={(nx, ny) => { setSigX(nx); setSigY(ny); }}
+                onResize={(nw, nh) => { setSigWidth(nw); setSigHeight(nh); }}
               />
             </div>
 
@@ -1503,6 +1817,42 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           </>
         );
 
+      case "redact-pdf":
+        return (
+          <>
+            <div className="form-group">
+              <div className="ann-preview-label" style={{ marginBottom: "8px" }}>
+                ⚠️ Redactions are permanent — content in these regions is removed from the file, not just hidden.
+              </div>
+              <label>Interactive PDF Page Preview</label>
+              <RedactPositionPreview
+                pdfFile={files[0]}
+                pageNum={redactPage}
+                onPageChange={(p) => setRedactPage(p)}
+                redactions={redactions}
+                onAddRedaction={(newRect) => setRedactions([...redactions, newRect])}
+                onRemoveRedaction={(idx) => setRedactions(redactions.filter((_, i) => i !== idx))}
+              />
+            </div>
+
+            {redactions.length > 0 && (
+              <div className="form-group">
+                <label>Redaction Queue ({redactions.length})</label>
+                <div className="ann-list">
+                  {redactions.map((r, i) => (
+                    <div key={i} className="ann-list-item">
+                      <span style={{ width: "14px", height: "14px", borderRadius: "3px", background: "#000000", flexShrink: 0, display: "inline-block" }} />
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Page {r.page} · ({r.x},{r.y}) → ({r.x2},{r.y2})</span>
+                      <button type="button" onClick={() => setRedactions(redactions.filter((_, j) => j !== i))}
+                        style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+
       default:
         return null;
     }
@@ -1510,6 +1860,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
 
   // ─── Output filename extension logic ──────────────────────────────────────
   const outputExt = (() => {
+    if (BATCH_TOOL_IDS.includes(toolId) && files.length > 1) return ".zip";
     if (["extract-text"].includes(toolId)) return ".txt";
     if (["extract-images", "pdf-to-images", "split"].includes(toolId) && (toolId !== "split" || splitAt?.includes(","))) return ".zip";
     if (["pdf-to-word"].includes(toolId)) return ".docx";
@@ -1578,14 +1929,15 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         )}
 
         <FileUpload
-          multiple={toolId === "merge" || toolId === "images-to-pdf"}
+          multiple={toolId === "merge" || toolId === "images-to-pdf" || BATCH_TOOL_IDS.includes(toolId)}
           files={files}
           setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
           label={
             toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
             : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
-            : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
+            : toolId === "word-to-pdf" ? "Drop your Word document(s) here — drop several to batch-convert"
             : toolId === "add-pdf" ? "Drop the base PDF here"
+            : BATCH_TOOL_IDS.includes(toolId) ? "Drop your PDF file here — drop several to batch-process"
             : "Drop your PDF file here"
           }
           showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}

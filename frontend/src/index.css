@@ -3295,6 +3295,29 @@ select.form-input {
   opacity: 1;
 }
 
+/* Resize grip in the bottom-right corner — drag to resize the box */
+.sig-resize-handle {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #14F195;
+  border: 2px solid var(--bg-surface, #0d1117);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.sig-drop-box:hover .sig-resize-handle {
+  opacity: 1;
+}
+
+.sig-resize-handle:hover {
+  transform: scale(1.2);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    SIGNATURE CANVAS TOOLBAR (color + thickness)
    ═══════════════════════════════════════════════════════════════════════════ */

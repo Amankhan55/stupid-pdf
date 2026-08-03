@@ -48,6 +48,55 @@ def _zip_files_response(files_list: List[tuple], zip_name: str) -> StreamingResp
     )
 
 
+async def _read_and_validate_many(files: List[UploadFile], max_size: int, allowed_exts: list, max_count: int = 20):
+    """Read + validate multiple uploads, returning [(filename, bytes), ...]."""
+    if len(files) > max_count:
+        raise HTTPException(status_code=400, detail=f"Maximum {max_count} files allowed.")
+    items = []
+    for f in files:
+        data = await f.read()
+        validate_file_bytes(data, f.filename, max_size, allowed_exts)
+        items.append((f.filename, data))
+    return items
+
+
+def _process_batch(items: List[tuple], per_file_fn, suffix: str, ext: str):
+    """
+    Run per_file_fn(bytes) -> bytes across every (filename, bytes) in items.
+    One file's failure never discards the others' results — each is caught
+    individually and reported separately instead.
+    Returns (results: [(unique_name, bytes), ...], errors: [(filename, str), ...]).
+    """
+    results, errors, seen = [], [], set()
+    for filename, data in items:
+        try:
+            out_bytes = per_file_fn(data)
+        except Exception as e:
+            errors.append((filename, str(e)))
+            continue
+        stem = filename.rsplit(".", 1)[0]
+        name, n = f"{stem}{suffix}.{ext}", 2
+        while name in seen:  # de-dupe two uploads sharing the same filename
+            name = f"{stem}{suffix}_{n}.{ext}"
+            n += 1
+        seen.add(name)
+        results.append((name, out_bytes))
+    return results, errors
+
+
+def _batch_response(results: List[tuple], errors: List[tuple], build_single_response, zip_name: str):
+    """build_single_response(bytes) -> StreamingResponse; used only for a lone, error-free result."""
+    if not results:
+        detail = "; ".join(f"{fn}: {msg}" for fn, msg in errors) or "All files failed to process."
+        raise HTTPException(status_code=400, detail=detail)
+    if len(results) == 1 and not errors:
+        return build_single_response(results[0][1])
+    if errors:
+        manifest = "\n".join(f"{fn}: {msg}" for fn, msg in errors)
+        results = results + [("_failures.txt", manifest.encode())]
+    return _zip_files_response(results, zip_name)
+
+
 def _server_error(operation: str, e: Exception):
     """Log the real exception server-side; never leak internals to the client."""
     logger.exception("Unexpected error while trying to %s", operation)
@@ -164,27 +213,33 @@ async def split(
 
 @router.post("/compress")
 async def compress(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     level: str = Form("medium"),  # "low", "medium", or "high"
 ):
     """
-    Compress a PDF at three levels:
+    Compress one or more PDFs at three levels:
     - low: lossless structural cleanup (safest)
     - medium: low + deflate streams/fonts/images, strip links (default)
     - high: medium + re-encode embedded images at reduced quality/resolution
+    Multiple files return a ZIP; a single file returns the compressed PDF directly.
     """
     if level not in ("low", "medium", "high"):
         raise HTTPException(status_code=400, detail="level must be 'low', 'medium', or 'high'")
-    data = await file.read()
-    validate_file_bytes(data, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        original_size = len(data)
-        result = pdf_service.compress_pdf(data, level)
-        compressed_size = len(result)
-        response = _pdf_response(result, "compressed.pdf")
-        response.headers["X-Original-Size"] = str(original_size)
-        response.headers["X-Compressed-Size"] = str(compressed_size)
-        response.headers["Access-Control-Expose-Headers"] = "X-Original-Size, X-Compressed-Size"
+        sizes = []
+
+        def compress_one(data: bytes) -> bytes:
+            out = pdf_service.compress_pdf(data, level)
+            sizes.append((len(data), len(out)))
+            return out
+
+        results, errors = _process_batch(items, compress_one, "_compressed", "pdf")
+        response = _batch_response(results, errors, lambda b: _pdf_response(b, "compressed.pdf"), "compressed.zip")
+        if sizes:
+            response.headers["X-Original-Size"] = str(sum(s[0] for s in sizes))
+            response.headers["X-Compressed-Size"] = str(sum(s[1] for s in sizes))
+            response.headers["Access-Control-Expose-Headers"] = "X-Original-Size, X-Compressed-Size"
         return response
     except Exception as e:
         _server_error("compress PDF", e)
@@ -249,18 +304,17 @@ async def rearrange_pages(
 
 @router.post("/rotate-pages")
 async def rotate_pages(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     pages: str = Form(""),   # comma-separated; empty = all pages
     angle: int = Form(90),   # 90, 180, or 270
 ):
     if angle not in (90, 180, 270):
         raise HTTPException(status_code=400, detail="Angle must be 90, 180, or 270.")
     page_list = _parse_page_list(pages, "pages")
-    data = await file.read()
-    validate_file_bytes(data, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        result = pdf_service.rotate_pages(data, page_list, angle)
-        return _pdf_response(result, "rotated.pdf")
+        results, errors = _process_batch(items, lambda data: pdf_service.rotate_pages(data, page_list, angle), "_rotated", "pdf")
+        return _batch_response(results, errors, lambda b: _pdf_response(b, "rotated.pdf"), "rotated.zip")
     except Exception as e:
         _server_error("rotate pages", e)
 
@@ -336,18 +390,58 @@ async def add_pdf(
 
 # ─── PDF Conversions ──────────────────────────────────────────────────────────
 
+def _flatten_multi_output_batch(items: List[tuple], per_file_fn):
+    """
+    For tools where each input file already produces MULTIPLE named output
+    files (pdf-to-images, extract-images). Prefixes every output name with
+    its source file's stem so files from different inputs never collide,
+    and isolates one file's failure from the rest (same contract as
+    _process_batch, just for a 1-to-many per_file_fn).
+    Returns (flattened: [(name, bytes), ...], errors: [(filename, str), ...]).
+    """
+    flattened, errors, seen = [], [], set()
+    for filename, data in items:
+        try:
+            outputs = per_file_fn(data)
+        except Exception as e:
+            errors.append((filename, str(e)))
+            continue
+        stem = filename.rsplit(".", 1)[0]
+        for name, out_bytes in outputs:
+            candidate, n = f"{stem}_{name}", 2
+            while candidate in seen:
+                base, ext = candidate.rsplit(".", 1) if "." in candidate else (candidate, "")
+                candidate = f"{base}_{n}.{ext}" if ext else f"{base}_{n}"
+                n += 1
+            seen.add(candidate)
+            flattened.append((candidate, out_bytes))
+    return flattened, errors
+
+
+def _zip_or_error(flattened: List[tuple], errors: List[tuple], zip_name: str) -> StreamingResponse:
+    """Always-ZIP response for multi-output-per-file tools, with the same partial-failure manifest as _batch_response."""
+    if not flattened:
+        detail = "; ".join(f"{fn}: {msg}" for fn, msg in errors) or "All files failed to process."
+        raise HTTPException(status_code=400, detail=detail)
+    if errors:
+        manifest = "\n".join(f"{fn}: {msg}" for fn, msg in errors)
+        flattened = flattened + [("_failures.txt", manifest.encode())]
+    return _zip_files_response(flattened, zip_name)
+
+
 @router.post("/pdf-to-images")
 async def pdf_to_images_route(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     format: str = Form("png"),  # "png" or "jpg"
 ):
     if format not in ("png", "jpg"):
         raise HTTPException(status_code=400, detail="Format must be 'png' or 'jpg'.")
-    data = await file.read()
-    validate_file_bytes(data, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        images = pdf_service.pdf_to_images(data, format)
-        return _zip_files_response(images, "images.zip")
+        flattened, errors = _flatten_multi_output_batch(items, lambda data: pdf_service.pdf_to_images(data, format))
+        return _zip_or_error(flattened, errors, "images.zip")
+    except HTTPException:
+        raise
     except Exception as e:
         _server_error("convert PDF to images", e)
 
@@ -370,45 +464,44 @@ async def images_to_pdf_route(files: List[UploadFile] = File(...)):
         _server_error("convert images to PDF", e)
 
 
+def _docx_response(docx_bytes: bytes, filename: str = "converted.docx") -> StreamingResponse:
+    return StreamingResponse(
+        io.BytesIO(docx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/word-to-pdf")
-async def word_to_pdf_route(file: UploadFile = File(...)):
-    docx_bytes = await file.read()
-    validate_file_bytes(docx_bytes, file.filename, MAX_DOCX_SIZE_BYTES, ["docx"])
+async def word_to_pdf_route(files: List[UploadFile] = File(...)):
+    items = await _read_and_validate_many(files, MAX_DOCX_SIZE_BYTES, ["docx"])
     try:
-        result = pdf_service.word_to_pdf(docx_bytes)
-        return _pdf_response(result, "converted.pdf")
+        results, errors = _process_batch(items, pdf_service.word_to_pdf, "_converted", "pdf")
+        return _batch_response(results, errors, lambda b: _pdf_response(b, "converted.pdf"), "converted.zip")
     except Exception as e:
         _server_error("convert Word document to PDF", e)
 
 
 @router.post("/pdf-to-word")
-async def pdf_to_word_route(file: UploadFile = File(...)):
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+async def pdf_to_word_route(files: List[UploadFile] = File(...)):
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        result = pdf_service.pdf_to_word(pdf_bytes)
-        return StreamingResponse(
-            io.BytesIO(result),
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": 'attachment; filename="converted.docx"'},
-        )
+        results, errors = _process_batch(items, pdf_service.pdf_to_word, "_converted", "docx")
+        return _batch_response(results, errors, lambda b: _docx_response(b, "converted.docx"), "converted.zip")
     except Exception as e:
         _server_error("convert PDF to Word", e)
 
 
 @router.post("/unlock-pdf")
 async def unlock_pdf_route(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     password: str = Form(""),
 ):
-    """Remove password protection from an encrypted PDF."""
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    """Remove password protection from one or more encrypted PDFs (same password tried on every file)."""
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        result = pdf_service.unlock_pdf(pdf_bytes, password)
-        return _pdf_response(result, "unlocked.pdf")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        results, errors = _process_batch(items, lambda data: pdf_service.unlock_pdf(data, password), "_unlocked", "pdf")
+        return _batch_response(results, errors, lambda b: _pdf_response(b, "unlocked.pdf"), "unlocked.zip")
     except Exception as e:
         _server_error("unlock PDF", e)
 
@@ -418,31 +511,30 @@ async def unlock_pdf_route(
 
 @router.post("/protect-pdf")
 async def protect_pdf_route(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     password: str = Form(...),
 ):
-    """Encrypt a PDF with AES-256 password protection."""
+    """Encrypt one or more PDFs with AES-256 password protection (same password for every file)."""
     if not password or not password.strip():
         raise HTTPException(status_code=400, detail="Password cannot be empty.")
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        result = pdf_service.protect_pdf(pdf_bytes, password)
-        return _pdf_response(result, "protected.pdf")
+        results, errors = _process_batch(items, lambda data: pdf_service.protect_pdf(data, password), "_protected", "pdf")
+        return _batch_response(results, errors, lambda b: _pdf_response(b, "protected.pdf"), "protected.zip")
     except Exception as e:
         _server_error("protect PDF", e)
 
 
 @router.post("/add-watermark")
 async def add_watermark_route(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     text: str = Form("CONFIDENTIAL"),
     opacity: float = Form(0.3),
     angle: float = Form(45.0),
     font_size: int = Form(48),
     color: str = Form("808080"),  # hex without #
 ):
-    """Overlay a text watermark on every page of a PDF."""
+    """Overlay a text watermark on every page of one or more PDFs."""
     # Parse hex color to RGB tuple
     hex_c = color.lstrip("#")
     if len(hex_c) == 3:
@@ -452,65 +544,73 @@ async def add_watermark_route(
     except (ValueError, IndexError):
         raise HTTPException(status_code=400, detail='Invalid color. Use a 3 or 6 character hex code, e.g. "808080".')
 
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        result = pdf_service.add_watermark(pdf_bytes, text, opacity, angle, font_size, rgb)
-        return _pdf_response(result, "watermarked.pdf")
+        results, errors = _process_batch(
+            items, lambda data: pdf_service.add_watermark(data, text, opacity, angle, font_size, rgb),
+            "_watermarked", "pdf"
+        )
+        return _batch_response(results, errors, lambda b: _pdf_response(b, "watermarked.pdf"), "watermarked.zip")
     except Exception as e:
         _server_error("add watermark", e)
 
 
 @router.post("/add-page-numbers")
 async def add_page_numbers_route(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     position: str = Form("bottom-center"),
     font_size: int = Form(10),
     start_number: int = Form(1),
     prefix: str = Form("Page"),
 ):
-    """Stamp page numbers onto every page of a PDF."""
+    """Stamp page numbers onto every page of one or more PDFs."""
     valid_positions = {
         "bottom-center", "bottom-left", "bottom-right",
         "top-center", "top-left", "top-right"
     }
     if position not in valid_positions:
         raise HTTPException(status_code=400, detail=f"position must be one of {valid_positions}")
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        result = pdf_service.add_page_numbers(pdf_bytes, position, font_size, start_number, prefix)
-        return _pdf_response(result, "numbered.pdf")
+        results, errors = _process_batch(
+            items, lambda data: pdf_service.add_page_numbers(data, position, font_size, start_number, prefix),
+            "_numbered", "pdf"
+        )
+        return _batch_response(results, errors, lambda b: _pdf_response(b, "numbered.pdf"), "numbered.zip")
     except Exception as e:
         _server_error("add page numbers", e)
 
 
+def _text_response(text_bytes: bytes, filename: str = "extracted_text.txt") -> StreamingResponse:
+    return StreamingResponse(
+        io.BytesIO(text_bytes),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/extract-text")
-async def extract_text_route(file: UploadFile = File(...)):
-    """Extract all text from a PDF and return as a .txt file."""
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+async def extract_text_route(files: List[UploadFile] = File(...)):
+    """Extract all text from one or more PDFs and return as .txt file(s)."""
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        text = pdf_service.extract_text(pdf_bytes)
-        return StreamingResponse(
-            io.BytesIO(text.encode("utf-8")),
-            media_type="text/plain; charset=utf-8",
-            headers={"Content-Disposition": 'attachment; filename="extracted_text.txt"'},
+        results, errors = _process_batch(
+            items, lambda data: pdf_service.extract_text(data).encode("utf-8"), "_extracted", "txt"
         )
+        return _batch_response(results, errors, lambda b: _text_response(b, "extracted_text.txt"), "extracted_text.zip")
     except Exception as e:
         _server_error("extract text", e)
 
 
 @router.post("/extract-images")
-async def extract_images_route(file: UploadFile = File(...)):
-    """Extract all embedded images from a PDF and return as a ZIP."""
-    pdf_bytes = await file.read()
-    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+async def extract_images_route(files: List[UploadFile] = File(...)):
+    """Extract all embedded images from one or more PDFs and return as a ZIP."""
+    items = await _read_and_validate_many(files, MAX_PDF_SIZE_BYTES, ["pdf"])
     try:
-        images = pdf_service.extract_images_from_pdf(pdf_bytes)
-        return _zip_files_response(images, "extracted_images.zip")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        flattened, errors = _flatten_multi_output_batch(items, pdf_service.extract_images_from_pdf)
+        return _zip_or_error(flattened, errors, "extracted_images.zip")
+    except HTTPException:
+        raise
     except Exception as e:
         _server_error("extract images", e)
 
@@ -573,3 +673,25 @@ async def annotate_pdf_route(
         return _pdf_response(result, "annotated.pdf")
     except Exception as e:
         _server_error("annotate PDF", e)
+
+
+@router.post("/redact-pdf")
+async def redact_pdf_route(
+    file: UploadFile = File(...),
+    redactions: str = Form(...),  # JSON string: [{page,x,y,x2,y2}, ...]
+):
+    """Permanently black out and strip content within given regions of a PDF."""
+    try:
+        rect_list = json.loads(redactions)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in redactions field.")
+    if not isinstance(rect_list, list) or len(rect_list) == 0:
+        raise HTTPException(status_code=400, detail="redactions must be a non-empty JSON array.")
+
+    pdf_bytes = await file.read()
+    validate_file_bytes(pdf_bytes, file.filename, MAX_PDF_SIZE_BYTES, ["pdf"])
+    try:
+        result = pdf_service.redact_pdf(pdf_bytes, rect_list)
+        return _pdf_response(result, "redacted.pdf")
+    except Exception as e:
+        _server_error("redact PDF", e)

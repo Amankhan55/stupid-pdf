@@ -24,6 +24,7 @@ import {
   ExcelIcon,
   SignatureIcon,
   AnnotateIcon,
+  RedactIcon,
 } from "./Icons";
 
 const HomeIcon = (props) => (
@@ -62,6 +63,7 @@ const UTILITY_TOOLS = [
 const SECURITY_TOOLS = [
   { id: "unlock-pdf",  icon: UnlockIcon,   label: "Unlock PDF" },
   { id: "protect-pdf", icon: ProtectIcon,  label: "Protect PDF" },
+  { id: "redact-pdf",  icon: RedactIcon,   label: "Redact PDF" },
 ];
 
 const CONVERSION_TOOLS = [

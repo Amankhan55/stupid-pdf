@@ -1261,3 +1261,38 @@ def annotate_pdf(pdf_bytes: bytes, annotations: list) -> bytes:
     output = io.BytesIO()
     doc.save(output)
     return output.getvalue()
+
+
+def redact_pdf(pdf_bytes: bytes, rects: list) -> bytes:
+    """
+    Permanently remove content (text + graphics) inside the given rectangles
+    and draw a solid black box over each — unlike a watermark/annotation
+    overlay, the underlying content is deleted, not just visually covered.
+    Each rect: {page: 1-indexed page number, x, y, x2, y2} in PDF points.
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total = len(doc)
+    touched_pages = set()
+
+    for r in rects:
+        page_num = int(r.get("page", 1))
+        page_idx = max(0, min(page_num - 1, total - 1))
+        page = doc.load_page(page_idx)
+        x = float(r.get("x", 0))
+        y = float(r.get("y", 0))
+        x2 = float(r.get("x2", x + 100))
+        y2 = float(r.get("y2", y + 20))
+        page.add_redact_annot(fitz.Rect(x, y, x2, y2), fill=(0, 0, 0))
+        touched_pages.add(page_idx)
+
+    for page_idx in touched_pages:
+        # graphics=2 also strips graphics that only partially overlap the
+        # rect (the default, graphics=1, only removes fully-contained ones
+        # and leaves a partially-covered vector shape intact underneath the
+        # black box — defeats the purpose of "not just an overlay").
+        doc.load_page(page_idx).apply_redactions(images=2, graphics=2, text=0)
+
+    output = io.BytesIO()
+    doc.save(output, garbage=4, deflate=True)
+    return output.getvalue()
