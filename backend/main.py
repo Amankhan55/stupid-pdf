@@ -21,9 +21,11 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
+allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +37,11 @@ app.include_router(pdf_router)
 @app.get("/")
 def root():
     return {"message": "Stupid PDF API is running 🚀", "docs": "/docs"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":
