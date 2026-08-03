@@ -1,8 +1,19 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { TOOL_RESTRICTIONS, validateFiles } from "../utils/fileValidation";
+import {
+  PDF_TOOLS,
+  EDITING_TOOLS,
+  UTILITY_TOOLS,
+  SECURITY_TOOLS,
+  CONVERSION_TOOLS,
+} from "./Sidebar";
 
 export default function Navbar({ activeTool = "home", onSelectTool }) {
   const fileInputRef = useRef(null);
+  const [megaOpen, setMegaOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeTimer = useRef(null);
 
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -42,6 +53,28 @@ export default function Navbar({ activeTool = "home", onSelectTool }) {
     }
   };
 
+  // Mega-menu hover handlers with delay to prevent flicker
+  const openMega = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setMegaOpen(true);
+  };
+  const closeMega = () => {
+    closeTimer.current = setTimeout(() => setMegaOpen(false), 200);
+  };
+  const handleToolClick = (toolId) => {
+    setMegaOpen(false);
+    setMobileOpen(false);
+    if (onSelectTool) onSelectTool(toolId);
+  };
+
+  const CATEGORIES = [
+    { label: "PDF Processing", tools: PDF_TOOLS, accent: "var(--accent-primary)" },
+    { label: "Editing",        tools: EDITING_TOOLS, accent: "var(--accent-purple)" },
+    { label: "Conversion",     tools: CONVERSION_TOOLS, accent: "var(--accent-secondary)" },
+    { label: "Security",       tools: SECURITY_TOOLS, accent: "var(--accent-red)" },
+    { label: "Utilities",      tools: UTILITY_TOOLS, accent: "var(--accent-amber)" },
+  ];
+
   return (
     <header className="navbar-glass">
       <input
@@ -64,7 +97,73 @@ export default function Navbar({ activeTool = "home", onSelectTool }) {
             </span>
           </div>
 
-          {/* Right: Engine Status & CTA */}
+          {/* Center: Nav Links with Tools Mega-Menu */}
+          <nav className="nav-links-center">
+            <div
+              className="nav-mega-trigger"
+              onMouseEnter={openMega}
+              onMouseLeave={closeMega}
+            >
+              <button
+                className={`nav-link-item nav-products-btn${megaOpen ? " active" : ""}`}
+                onClick={() => setMegaOpen((v) => !v)}
+                aria-expanded={megaOpen}
+                aria-haspopup="true"
+              >
+                Tools
+                <svg
+                  className={`nav-chevron${megaOpen ? " open" : ""}`}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Mega-menu dropdown */}
+              {megaOpen && (
+                <div className="mega-menu-panel" onMouseEnter={openMega} onMouseLeave={closeMega}>
+                  <div className="mega-menu-inner">
+                    {CATEGORIES.map((cat) => (
+                      <div key={cat.label} className="mega-category">
+                        <div className="mega-category-label" style={{ color: cat.accent }}>
+                          <span className="mega-cat-dot" style={{ background: cat.accent }} />
+                          {cat.label}
+                        </div>
+                        <div className="mega-tool-list">
+                          {cat.tools.map((tool) => {
+                            const Icon = tool.icon;
+                            return (
+                              <button
+                                key={tool.id}
+                                className={`mega-tool-item${tool.comingSoon ? " disabled" : ""}`}
+                                disabled={tool.comingSoon}
+                                onClick={() => !tool.comingSoon && handleToolClick(tool.id)}
+                              >
+                                <span className="mega-tool-icon" style={{ color: cat.accent }}>
+                                  <Icon width="16" height="16" />
+                                </span>
+                                <span className="mega-tool-label">{tool.label}</span>
+                                {tool.comingSoon && <span className="mega-soon-pill">Soon</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </nav>
+
+          {/* Right: CTA + Hamburger */}
           <div className="nav-right-actions">
             <button
               type="button"
@@ -78,9 +177,68 @@ export default function Navbar({ activeTool = "home", onSelectTool }) {
               </svg>
               <span>Upload PDF</span>
             </button>
+
+            {/* Hamburger button — visible only on mobile */}
+            <button
+              className="nav-hamburger"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Open menu"
+            >
+              <span className={`hamburger-line${mobileOpen ? " open" : ""}`} />
+              <span className={`hamburger-line${mobileOpen ? " open" : ""}`} />
+              <span className={`hamburger-line${mobileOpen ? " open" : ""}`} />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Full-Screen Drawer via Portal to escape header containing block */}
+      {mobileOpen &&
+        createPortal(
+          <>
+            <div className="mobile-drawer-backdrop" onClick={() => setMobileOpen(false)} />
+            <div className={`mobile-drawer${mobileOpen ? " open" : ""}`}>
+              <div className="mobile-drawer-header">
+                <span className="mobile-drawer-title">All Tools</span>
+                <button className="mobile-drawer-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="mobile-drawer-body">
+                {CATEGORIES.map((cat) => (
+                  <div key={cat.label} className="mobile-drawer-category">
+                    <div className="mobile-drawer-cat-label" style={{ color: cat.accent }}>
+                      <span className="mega-cat-dot" style={{ background: cat.accent }} />
+                      {cat.label}
+                    </div>
+                    {cat.tools.map((tool) => {
+                      const Icon = tool.icon;
+                      return (
+                        <button
+                          key={tool.id}
+                          className={`mobile-drawer-item${tool.comingSoon ? " disabled" : ""}`}
+                          disabled={tool.comingSoon}
+                          onClick={() => !tool.comingSoon && handleToolClick(tool.id)}
+                        >
+                          <span className="mega-tool-icon" style={{ color: cat.accent }}>
+                            <Icon width="18" height="18" />
+                          </span>
+                          <span className="mobile-drawer-item-label">{tool.label}</span>
+                          {tool.comingSoon && <span className="mega-soon-pill">Soon</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
     </header>
   );
 }
+
