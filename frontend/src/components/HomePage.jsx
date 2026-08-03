@@ -204,21 +204,6 @@ export default function HomePage({ onSelect }) {
                   </svg>
                 </button>
               </div>
-
-              {/* Trust Signals (Priority 10) */}
-              <div className="trust-signals-row" role="list" aria-label="Privacy guarantees">
-                {[
-                  "No account required",
-                  "Files never stored",
-                  "100% Private",
-                  "Open Source",
-                ].map((signal) => (
-                  <span key={signal} className="trust-signal-item" role="listitem">
-                    <span className="trust-signal-check" aria-hidden="true">✓</span>
-                    {signal}
-                  </span>
-                ))}
-              </div>
             </div>
 
 
