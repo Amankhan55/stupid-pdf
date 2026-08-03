@@ -92,7 +92,7 @@ export default function HomePage({ onSelect }) {
   const renderToolCard = (tool, isPopular = false) => {
     const Icon = tool.icon;
     const category = getToolCategory(tool.id);
-    const isSoon = tool.comingSoon || ["annotate-pdf", "pdf-to-excel", "pdf-to-word"].includes(tool.id);
+    const isSoon = tool.comingSoon || ["annotate-pdf", "pdf-to-excel"].includes(tool.id);
 
     return (
       <div
