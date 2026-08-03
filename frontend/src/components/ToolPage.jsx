@@ -713,7 +713,7 @@ function AnnotatePositionPreview({
 
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
 const TOOL_META = {
-  "merge":            { icon: MergeIcon,        title: "Merge PDFs",          desc: "Combine multiple PDF files into a single document in the order you upload them.",                     tag: "Combine" },
+  "merge":            { icon: MergeIcon,         title: "Merge PDFs",          desc: "Combine multiple PDF files into a single document in the order you upload them.",                     tag: "Combine" },
   "split":            { icon: SplitIcon,         title: "Split PDF",           desc: "Split a PDF into separate parts at the page numbers you specify.",                                    tag: "Divide" },
   "compress":         { icon: CompressIcon,      title: "Compress PDF",        desc: "Reduce the file size of your PDF by removing redundant data and compressing streams.",                tag: "Optimize" },
   "extract-pages":    { icon: ExtractIcon,       title: "Extract Pages",       desc: "Pull out specific pages from your PDF and save them as a new document.",                             tag: "Select" },
@@ -727,7 +727,7 @@ const TOOL_META = {
   "pdf-to-images":    { icon: PdfToImageIcon,    title: "PDF to Images",       desc: "Convert PDF pages into PNG or JPG images packed into a ZIP.",                                        tag: "Convert" },
   "images-to-pdf":    { icon: ImageToPdfIcon,    title: "Images to PDF",       desc: "Convert a list of images into a single combined PDF document.",                                      tag: "Convert" },
   "word-to-pdf":      { icon: WordToPdfIcon,     title: "Word to PDF",         desc: "Convert Microsoft Word .docx documents into PDF format.",                                            tag: "Convert" },
-  "pdf-to-word":      { icon: PdfToWordIcon,     title: "PDF to Word",         desc: "Convert PDF documents back into editable Word .docx files.",                                        tag: "Convert", comingSoon: true },
+  "pdf-to-word":      { icon: PdfToWordIcon,     title: "PDF to Word",         desc: "Convert PDF documents back into editable Word .docx files.",                                        tag: "Convert" },
   "unlock-pdf":       { icon: UnlockIcon,        title: "Unlock PDF",          desc: "Remove password protection from a locked PDF.",                                                      tag: "Security" },
   "protect-pdf":      { icon: ProtectIcon,       title: "Protect PDF",         desc: "Encrypt your PDF with AES-256 password protection to keep it secure.",                              tag: "Security" },
   "add-watermark":    { icon: WatermarkIcon,     title: "Add Watermark",       desc: "Overlay a custom text watermark on every page of your PDF.",                                        tag: "Editing" },
