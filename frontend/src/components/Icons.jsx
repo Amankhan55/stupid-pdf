@@ -326,3 +326,19 @@ export const AnnotateIcon = (props) => (
     <line x1="17.5" y1="14" x2="20.5" y2="14" stroke="#14F195" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
+
+/* ─── 25. REDACT ICON (Crimson/Pink Blocked-Out Lines) ───────────────────── */
+export const RedactIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="redact-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FF5D73" />
+        <stop offset="100%" stopColor="#9B6DFF" />
+      </linearGradient>
+    </defs>
+    <rect x="3" y="4" width="18" height="16" rx="2" stroke="url(#redact-grad)" strokeWidth="1.8" fill="none" />
+    <line x1="6" y1="8" x2="18" y2="8" stroke="url(#redact-grad)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+    <rect x="6" y="10.5" width="12" height="3.5" rx="0.5" fill="#0B0F17" stroke="url(#redact-grad)" strokeWidth="1.4" />
+    <line x1="6" y1="17" x2="14" y2="17" stroke="url(#redact-grad)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+  </svg>
+);
