@@ -41,8 +41,8 @@ async def contact_route(
 
     try:
         send_contact_email(name, email, message, topic)
-    except Exception:
-        logger.exception("Failed to send contact form email")
-        raise HTTPException(status_code=500, detail="Failed to send your message. Please try again later.")
+    except Exception as exc:
+        logger.error("Failed to send contact form email: %s: %s", type(exc).__name__, exc)
+        raise HTTPException(status_code=500, detail=f"Failed to send your message. Please try again later. [{type(exc).__name__}]")
 
     return {"status": "sent"}
