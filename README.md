@@ -3,7 +3,7 @@
 > **Stupidly Simple. Blazingly Fast.**
 > *No accounts. No subscriptions. No stored files. Just instant PDF tools powered by a zero-storage processing engine.*
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![AGPL-3.0 License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
@@ -223,7 +223,9 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 
 ## 📄 License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE) for more information.
+The source code is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for the full text.
+
+> ⚠️ **Brand Assets Notice:** The name "StupidPDF", the logo, icons, screenshots, and other brand assets are **not** covered by the AGPL license and may not be used without prior written permission. See [NOTICE.md](NOTICE.md) for details.
 
 ---
 

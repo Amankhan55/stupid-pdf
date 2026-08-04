@@ -119,4 +119,6 @@ Instead, use the [Contact page](https://stupid-pdf-opal.vercel.app/contact) to r
 
 ## 📄 License
 
-By contributing to StupidPDF, you agree that your contributions will be licensed under the **MIT License**.
+By contributing to StupidPDF, you agree that your contributions will be licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+Note: The "StupidPDF" name, logo, and brand assets are separately reserved and **not** covered by the AGPL. See [NOTICE.md](NOTICE.md) for details.

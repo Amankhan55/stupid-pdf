@@ -1,21 +1,90 @@
-MIT License
+                    GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
 
-Copyright (c) 2026 Amanulla Khan
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+                            Preamble
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+  The GNU Affero General Public License is a free, copyleft license for
+software and other kinds of works, specifically designed to ensure
+cooperation with the community in the case of network server software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  The licenses for most software and other practical works are designed
+to take away your freedom to share and change the works.  By contrast,
+our General Public Licenses are intended to guarantee your freedom to
+share and change all versions of a program--to make sure it remains free
+software for all its users.
+
+  When we speak of free software, we are referring to freedom, not
+price.  Our General Public Licenses are designed to make sure that you
+have the freedom to distribute copies of free software (and charge for
+them if you wish), that you receive source code or can get it if you
+want it, that you can change the software or use pieces of it in new
+free programs, and that you know you can do these things.
+
+  Developers that use our General Public Licenses protect your rights
+with two steps: (1) assert copyright on the software, and (2) offer
+you this License which gives you legal permission to copy, distribute
+and/or modify the software.
+
+  A secondary benefit of the GNU Affero GPL for network-server software
+is that it requires that modified versions of the program, if run as
+network-accessible services, must also publish their source code.  This
+means that a company running a modified version of the program as a
+service must distribute the source code of the modified version.
+
+  For the full license text, see: https://www.gnu.org/licenses/agpl-3.0.txt
+
+  The full AGPL-3.0 license text is incorporated by reference. The
+  canonical version is available at:
+  https://www.gnu.org/licenses/agpl-3.0.html
+
+==============================================================================
+                  StupidPDF — AGPL-3.0 License Notice
+==============================================================================
+
+Copyright (C) 2024 Aman Ullah Khan
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+==============================================================================
+                        BRAND ASSETS NOTICE
+==============================================================================
+
+The source code of StupidPDF is licensed under the GNU Affero General Public
+License v3.0 (AGPL-3.0) as described above.
+
+HOWEVER, the following are NOT covered by the AGPL license and may NOT be
+used, reproduced, distributed, or displayed without prior written permission
+from the author (Aman Ullah Khan):
+
+  - The name "StupidPDF" and any confusingly similar names
+  - The StupidPDF logo, favicon, and icon artwork
+  - Screenshots, promotional images, and marketing materials
+  - Any other brand assets associated with StupidPDF
+
+This means:
+
+  ✅ You MAY fork this repository, study the code, and self-host the software.
+  ✅ You MAY contribute improvements back under the AGPL-3.0 terms.
+  ✅ You MAY use the source code in your own AGPL-3.0 projects.
+
+  ❌ You MAY NOT use the "StupidPDF" name in your product, service, or fork.
+  ❌ You MAY NOT use the StupidPDF logo or brand assets in any form.
+  ❌ You MAY NOT create a competing SaaS or product using StupidPDF branding.
+
+For licensing inquiries or written permission requests, please contact via
+the StupidPDF website: https://stupid-pdf-opal.vercel.app/contact
