@@ -223,12 +223,12 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
 
 ## 📄 License
 
-The source code is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for the full text.
+The source code is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for the full, verbatim license text.
 
-> ⚠️ **Brand Assets Notice:** The name "StupidPDF", the logo, icons, screenshots, and other brand assets are **not** covered by the AGPL license and may not be used without prior written permission. See [NOTICE.md](NOTICE.md) for details.
+> ⚠️ **Brand Assets Notice:** The name "StupidPDF", the logo, icons, screenshots, and other brand assets are **not** covered by the AGPL license and may not be used without prior written permission. See [TRADEMARKS.md](TRADEMARKS.md) and [NOTICE](NOTICE) for details.
 
 ---
 
 ## 💬 Contact & Support
 
-Found a bug or have a feature request? [Open an issue](https://github.com/Amankhan55/stupid-pdf/issues) or use the [Contact page](https://stupid-pdf-opal.vercel.app/contact) on the live app.
+Found a bug or have a feature request? [Open an issue](https://github.com/Amankhan55/stupid-pdf/issues) or use the [Contact page](https://stupidpdf.live/contact) on the live app.
