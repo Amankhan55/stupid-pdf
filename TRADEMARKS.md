@@ -47,5 +47,5 @@ without explicit written permission.
 
 ## Contact
 
-For trademark or brand licensing inquiries, please contact:
-https://stupid-pdf-opal.vercel.app/contact
+For trademark or brand licensing inquiries, please use the Contact Us page (linked in the footer) at:
+https://stupid-pdf-opal.vercel.app/

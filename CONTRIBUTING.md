@@ -118,7 +118,7 @@ Have an idea for a new PDF tool or improvement? [Open a Feature Request issue](h
 ## 🛡️ Security
 
 If you discover a security vulnerability, **please do NOT open a public issue**.  
-Instead, use the [Contact page](https://stupid-pdf-opal.vercel.app/contact) to report it privately.
+Instead, use the [Contact Us page](https://stupid-pdf-opal.vercel.app/) (linked in the site footer) to report it privately.
 
 ---
 

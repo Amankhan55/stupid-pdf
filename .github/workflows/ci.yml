@@ -35,7 +35,7 @@ jobs:
         run: npm run build
 
   # ─────────────────────────────────────────────
-  # Backend Dependency & Syntax Check
+  # Backend Dependency & Import Check
   # ─────────────────────────────────────────────
   backend:
     name: Backend Check
@@ -58,5 +58,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check Python syntax
-        run: python -m py_compile main.py routes/*.py services/*.py
+      - name: Verify backend imports without errors
+        # Actually importing the app (rather than just py_compile'ing files)
+        # exercises the real import graph, so it also catches missing
+        # dependencies and broken imports in files like rate_limit.py that
+        # a plain glob-based syntax check would silently skip.
+        run: python -c "from main import app"

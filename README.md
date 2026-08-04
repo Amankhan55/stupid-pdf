@@ -7,7 +7,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
-[![Live App](https://img.shields.io/badge/Live%20App-stupidpdf.live-14F195)](https://stupid-pdf-opal.vercel.app/)
+[![Live App](https://img.shields.io/badge/Live%20App-Online-14F195)](https://stupid-pdf-opal.vercel.app/)
 
 **Live Web App:** [https://stupid-pdf-opal.vercel.app/](https://stupid-pdf-opal.vercel.app/)
 
@@ -239,4 +239,4 @@ The source code is licensed under the **GNU Affero General Public License v3.0 (
 
 ## 💬 Contact & Support
 
-Found a bug or have a feature request? [Open an issue](https://github.com/Amankhan55/stupid-pdf/issues) or use the [Contact page](https://stupid-pdf-opal.vercel.app/contact) on the live app.
+Found a bug or have a feature request? [Open an issue](https://github.com/Amankhan55/stupid-pdf/issues) or use the Contact Us page (linked in the footer) on the [live app](https://stupid-pdf-opal.vercel.app/).
