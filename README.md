@@ -1,8 +1,15 @@
 # ⚡ StupidPDF
 
-> **Stupidly Simple. Blazingly Fast.**  
-> *No accounts. No subscriptions. No stored files. Just instant PDF tools powered by a zero-storage processing engine.*  
-> **Live Web App:** [https://stupid-pdf-opal.vercel.app/](https://stupid-pdf-opal.vercel.app/)
+> **Stupidly Simple. Blazingly Fast.**
+> *No accounts. No subscriptions. No stored files. Just instant PDF tools powered by a zero-storage processing engine.*
+
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
+[![Live App](https://img.shields.io/badge/Live%20App-stupidpdf.live-14F195)](https://stupid-pdf-opal.vercel.app/)
+
+**Live Web App:** [https://stupid-pdf-opal.vercel.app/](https://stupid-pdf-opal.vercel.app/)
 
 A premium, full-stack PDF utility web application built with **React 18 + Vite** on the frontend and **Python FastAPI + PyMuPDF** on the backend. Designed with a sleek, dark-mode glassmorphic interface, stateless in-memory execution, and real-time interactive canvas previews.
 
@@ -54,9 +61,9 @@ A premium, full-stack PDF utility web application built with **React 18 + Vite**
 
 ## 🚀 Key User Experience Innovations
 
-* 🎯 **Animated Progress Bar with Real-time Percentage:** Visual feedback during processing with Axios upload progress tracking (0-50%) + smooth simulated server processing (50-90%) snapping to 100% on completion with glowing neon indicators.
+* 🎯 **Animated Progress Bar with Real-time Percentage:** Visual feedback during processing with Axios upload progress tracking (0–50%) + smooth simulated server processing (50–90%) snapping to 100% on completion with glowing neon indicators.
 * 📍 **Live PDF Page Preview (`pdfjs-dist`):** High-fidelity canvas rendering of actual uploaded PDF pages in browser. Click or drag to position signatures directly over document text.
-* ✍️ **Custom Signature Canvas:** Interactive draw pad featuring 6 preset color swatches, a custom color picker, stroke thickness slider (1-8px), and a real-time pen tip preview dot.
+* ✍️ **Custom Signature Canvas:** Interactive draw pad featuring 6 preset color swatches, a custom color picker, stroke thickness slider (1–8px), and a real-time pen tip preview dot.
 * 📂 **Header Smart File Upload:** Header CTA button opens native browser file dialog and routes selected single or multiple files straight into active tools.
 * 🎨 **Glassmorphism Design System:** Tailored HSL dark-mode theme, sleek neon accents (`#14F195`, `#00C9FF`, `#9B6DFF`), subtle micro-animations, and responsive layout for mobile and desktop.
 
@@ -76,6 +83,7 @@ A premium, full-stack PDF utility web application built with **React 18 + Vite**
 - **PDF Core Engines:** PyMuPDF (`fitz`), PyPDF2
 - **Office Conversion & Parsing:** `mammoth`, `xhtml2pdf`, `pdfplumber`, `openpyxl`
 - **Image Processing:** Pillow (`PIL`)
+- **Rate Limiting:** SlowAPI
 
 ---
 
@@ -86,10 +94,13 @@ stupid-pdf/
 ├── backend/
 │   ├── main.py                   # FastAPI application & CORS configuration
 │   ├── requirements.txt          # Python dependencies
+│   ├── .env.example              # Environment variable template (copy to .env)
 │   ├── routes/
-│   │   └── pdf_routes.py         # API Endpoints (20+ routes)
+│   │   ├── pdf_routes.py         # PDF tool API endpoints (20+ routes)
+│   │   └── contact_routes.py     # Contact form endpoint
 │   └── services/
-│       └── pdf_service.py        # Service layer (PyMuPDF, PyPDF2 logic)
+│       ├── pdf_service.py        # PDF processing logic (PyMuPDF, PyPDF2)
+│       └── email_service.py      # Contact form email delivery (Gmail SMTP)
 └── frontend/
     ├── index.html
     ├── package.json
@@ -98,13 +109,16 @@ stupid-pdf/
         ├── App.jsx               # Root application router & layout
         ├── index.css             # Core design system tokens & styles
         ├── api/
-        │   └── pdf.js            # Frontend API client
+        │   ├── pdf.js            # PDF API client
+        │   └── contact.js        # Contact API client
         └── components/
             ├── Navbar.jsx        # Glass top navigation bar
             ├── Sidebar.jsx       # Categorized tool navigation sidebar
             ├── HomePage.jsx      # Hero dashboard & tool card grid
             ├── ToolPage.jsx      # Main tool execution container & previews
             ├── FileUpload.jsx    # Drag-and-drop file upload zone
+            ├── ContactPage.jsx   # Contact form page
+            ├── PrivacyPolicy.jsx # Privacy policy page
             └── Icons.jsx         # Custom SVG icon set
 ```
 
@@ -113,28 +127,40 @@ stupid-pdf/
 ## 💻 Local Setup & Installation
 
 ### Prerequisites
-- Node.js (v18+)
-- Python (v3.10+)
+- **Node.js** v18+
+- **Python** v3.10+
 
-### 1. Backend Setup
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Amankhan55/stupid-pdf.git
+cd stupid-pdf
+```
+
+### 2. Backend Setup
 
 ```bash
 cd backend
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
 
-# Start FastAPI dev server
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your values (see Environment Variables section below)
+
+# Start the FastAPI backend server
 python main.py
 ```
-* Backend API will run at: `http://localhost:8000`
-* Interactive API Documentation (Swagger): `http://localhost:8000/docs`
 
-### 2. Frontend Setup
+* Backend API: `http://localhost:8000`
+* Interactive Swagger Docs: `http://localhost:8000/docs`
+
+### 3. Frontend Setup
 
 ```bash
 cd frontend
@@ -142,22 +168,65 @@ cd frontend
 # Install npm dependencies
 npm install
 
-# Start Vite dev server
+# Start the Vite dev server
 npm run dev
 ```
-* Frontend app will run at: `http://localhost:5173`
+
+* Frontend app: `http://localhost:5173`
+
+---
+
+## 🔧 Environment Variables
+
+Copy `backend/.env.example` to `backend/.env` and fill in values:
+
+```env
+# Gmail address used to send contact form emails
+GMAIL_ADDRESS=your-email@gmail.com
+
+# Gmail App Password (NOT your account password)
+# Generate at: https://myaccount.google.com/apppasswords (requires 2FA)
+GMAIL_APP_PASSWORD=your-app-password
+
+# Allowed frontend origins for CORS (comma-separated, defaults to * if unset)
+ALLOWED_ORIGINS=http://localhost:5173
+
+# Set to "true" to enable uvicorn auto-reload in development
+DEBUG=true
+```
+
+> ⚠️ **Never commit your `.env` file.** It is already listed in `.gitignore`.
 
 ---
 
 ## 🛡️ Privacy & Security
 
 StupidPDF operates on a **stateless, privacy-first principle**:
-- All operations process data in-memory (`io.BytesIO`) without writing temporary files to server disk.
+- All operations process data in-memory (`io.BytesIO`) — no files are written to the server disk.
 - Zero tracking, zero file storage, and zero user data logging.
 - Uploaded files are discarded immediately upon streaming the result back to the client.
+- Rate limiting is enforced on all API endpoints to prevent abuse.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a PR.
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feat/your-feature-name`
+3. Commit your changes: `git commit -m "feat: add your feature"`
+4. Push to your fork: `git push origin feat/your-feature-name`
+5. Open a Pull Request.
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the **MIT License**. See [LICENSE](LICENSE) for more information.
+
+---
+
+## 💬 Contact & Support
+
+Found a bug or have a feature request? [Open an issue](https://github.com/Amankhan55/stupid-pdf/issues) or use the [Contact page](https://stupid-pdf-opal.vercel.app/contact) on the live app.
