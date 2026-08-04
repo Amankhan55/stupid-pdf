@@ -10,6 +10,7 @@ backend/**/__pycache__/
 dist/
 build/
 .env
+*.log
 
 # Node / Frontend
 frontend/node_modules/
@@ -23,3 +24,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# AI / Agent tooling
+.claude/
+.agents/
+
+# Testing / scratch
+testing/
