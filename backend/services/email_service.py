@@ -1,25 +1,33 @@
+import base64
 import html
 import os
-import smtplib
 from datetime import datetime
-from email.mime.image import MIMEImage
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+
+import requests
 
 # Path to the original StupidPDF logo image
 LOGO_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "logo.png")
 )
 
+RESEND_API_URL = "https://api.resend.com/emails"
+
 
 def send_contact_email(name: str, sender_email: str, message: str, topic: str = "General Question") -> None:
-    """Send a contact-form submission to GMAIL_ADDRESS with automatic system theme adaptation (Light Mode & Dark Mode)."""
-    # Read env vars at call-time so Render environment changes are always picked up
-    gmail_address = os.getenv("GMAIL_ADDRESS", "").strip()
-    gmail_app_password = os.getenv("GMAIL_APP_PASSWORD", "").replace(" ", "").strip()
+    """
+    Send a contact-form submission to GMAIL_ADDRESS via the Resend HTTP API,
+    with automatic system theme adaptation (Light Mode & Dark Mode).
 
-    if not gmail_address or not gmail_app_password:
-        raise RuntimeError("Email sending is not configured (missing GMAIL_ADDRESS/GMAIL_APP_PASSWORD).")
+    Uses Resend rather than raw SMTP because Render blocks outbound SMTP
+    ports (25/465/587) on every plan — an HTTPS API is the only transport
+    that actually works from a Render-hosted backend.
+    """
+    # Read env vars at call-time so Render environment changes are always picked up
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+    to_email = os.getenv("GMAIL_ADDRESS", "").strip()
+
+    if not resend_api_key or not to_email:
+        raise RuntimeError("Email sending is not configured (missing RESEND_API_KEY/GMAIL_ADDRESS).")
 
     # Clean up topic & message text
     clean_message = message.strip()
@@ -60,14 +68,7 @@ def send_contact_email(name: str, sender_email: str, message: str, topic: str = 
         topic_color = "#00838F"
         topic_icon = "💬"
 
-    msg = MIMEMultipart("related")
-    msg["From"] = f"StupidPDF Dispatch <{gmail_address}>"
-    msg["To"] = gmail_address
-    msg["Reply-To"] = sender_email
-    msg["Subject"] = f"⚡ [{topic}] New Message from {name} via StupidPDF"
-
-    msg_alternative = MIMEMultipart("alternative")
-    msg.attach(msg_alternative)
+    subject = f"⚡ [{topic}] New Message from {name} via StupidPDF"
 
     # 1. Plain Text Fallback
     plain_text = f"""
@@ -195,7 +196,7 @@ Reply directly to this email to respond to {name}.
     <tr>
       <td align="center">
         <table role="presentation" width="100%" style="max-width: 580px; overflow: hidden; border-radius: 16px;" cellspacing="0" cellpadding="0" border="0" class="email-card">
-          
+
           <!-- BRAND HEADER WITH ORIGINAL LOGO -->
           <tr>
             <td style="padding: 24px 28px;" class="email-header">
@@ -322,22 +323,36 @@ Reply directly to this email to respond to {name}.
 </html>
 """
 
-    msg_alternative.attach(MIMEText(plain_text, "plain"))
-    msg_alternative.attach(MIMEText(html_body, "html"))
+    payload = {
+        "from": "StupidPDF Contact <onboarding@resend.dev>",
+        "to": [to_email],
+        "reply_to": sender_email,
+        "subject": subject,
+        "html": html_body,
+        "text": plain_text,
+    }
 
-    # Attach original StupidPDF logo image as inline CID attachment
+    # Attach the original StupidPDF logo image, referenced inline via cid:stupidpdf_logo above
     if os.path.exists(LOGO_PATH):
         try:
             with open(LOGO_PATH, "rb") as f:
-                img_data = f.read()
-            img = MIMEImage(img_data, name="logo.png")
-            img.add_header("Content-ID", "<stupidpdf_logo>")
-            img.add_header("Content-Disposition", "inline", filename="logo.png")
-            msg.attach(img)
+                logo_b64 = base64.b64encode(f.read()).decode("ascii")
+            payload["attachments"] = [{
+                "filename": "logo.png",
+                "content": logo_b64,
+                "content_id": "stupidpdf_logo",
+            }]
         except Exception:
             pass
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(gmail_address, gmail_app_password)
-        server.send_message(msg)
+    response = requests.post(
+        RESEND_API_URL,
+        headers={
+            "Authorization": f"Bearer {resend_api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=15,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"Resend API error {response.status_code}: {response.text}")
