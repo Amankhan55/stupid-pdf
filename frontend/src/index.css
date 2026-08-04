@@ -4358,15 +4358,15 @@ select.form-input {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── 9.8/10 SAAS-QUALITY CONTACT PAGE REDESIGN ──────────────────────────────── */
+/* ─── CONTACT PAGE — single-column, form-first layout ────────────────────────── */
 .contact-main-wrapper {
   padding-top: 28px;
   padding-bottom: 64px;
   background: radial-gradient(circle at 50% 0%, rgba(20, 241, 149, 0.06), transparent 70%);
 }
 
-.contact-page-container {
-  max-width: 1040px;
+.contact-v2-container {
+  max-width: 680px;
   margin: 0 auto;
   animation: contactPageFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -4388,7 +4388,7 @@ select.form-input {
   padding: 6px 14px;
   border-radius: 99px;
   cursor: pointer;
-  margin-bottom: 20px;
+  margin-bottom: 28px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4399,8 +4399,10 @@ select.form-input {
   transform: translateX(-4px);
 }
 
-.contact-header-section {
-  margin-bottom: 28px;
+/* Centered hero */
+.contact-v2-hero {
+  text-align: center;
+  margin-bottom: 36px;
 }
 
 .contact-pill-badge {
@@ -4416,7 +4418,7 @@ select.form-input {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .contact-badge-dot {
@@ -4427,190 +4429,109 @@ select.form-input {
   box-shadow: 0 0 8px var(--accent-primary);
 }
 
-.contact-title-main {
-  font-size: 38px;
+.contact-v2-title {
+  font-size: 42px;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   line-height: 1.1;
 }
 
-.contact-subtitle-desc {
+.contact-v2-subtitle {
   font-size: 15px;
   color: var(--text-muted);
-  max-width: 620px;
+  max-width: 480px;
   line-height: 1.6;
+  margin: 0 auto 22px;
 }
 
-/* 2-Column Split Grid (42% Left / 58% Right, Natural Height) */
-.contact-split-grid {
-  display: grid;
-  grid-template-columns: 42% 58%;
-  gap: 24px;
-  align-items: start;
-}
-
-/* Left Info Column Surfaces */
-.contact-info-col {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.contact-card-surface {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  background: rgba(18, 22, 28, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(16px);
-  text-decoration: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.contact-card-surface.clickable-card:hover {
-  background: rgba(22, 28, 40, 0.85);
-  border-color: rgba(20, 241, 149, 0.35);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
-}
-
-.contact-card-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
+/* Horizontal quick-fact strip, replaces the old sidebar card stack */
+.contact-v2-facts {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-
-.contact-card-icon-box.cyan {
-  background: rgba(0, 201, 255, 0.1);
-  border: 1px solid rgba(0, 201, 255, 0.25);
-  color: #00C9FF;
-}
-
-.contact-card-icon-box.emerald {
-  background: rgba(20, 241, 149, 0.1);
-  border: 1px solid rgba(20, 241, 149, 0.25);
-  color: #14F195;
-}
-
-.contact-card-icon-box.purple {
-  background: rgba(155, 109, 255, 0.1);
-  border: 1px solid rgba(155, 109, 255, 0.25);
-  color: #9B6DFF;
-}
-
-.contact-card-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 3px;
-}
-
-.contact-card-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.4;
-  margin-bottom: 6px;
-}
-
-.contact-meta-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 99px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #14F195;
-  background: rgba(20, 241, 149, 0.1);
-  border: 1px solid rgba(20, 241, 149, 0.25);
-}
-
-.contact-card-bullets {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-bottom: 6px;
-  padding: 0;
-}
-
-.contact-card-bullets li {
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.contact-card-link-text {
-  font-size: 12px;
-  font-weight: 700;
-  color: #00C9FF;
-  transition: color 0.2s ease;
-}
-
-.contact-card-surface:hover .contact-card-link-text {
-  color: #14F195;
-}
-
-/* Trust Badges Container */
-.contact-trust-badges {
-  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 2px;
+  gap: 10px;
 }
 
-.trust-badge {
+.contact-v2-fact {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  gap: 6px;
+  padding: 6px 14px;
   border-radius: 99px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-muted);
-  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--text-secondary);
+  font-size: 12px;
   font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Right Column Compact Glassmorphism Form Panel */
-.contact-form-panel {
+.contact-v2-fact-link:hover {
+  background: rgba(20, 241, 149, 0.08);
+  border-color: rgba(20, 241, 149, 0.3);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+/* Single focal form card */
+.contact-v2-card {
   background: rgba(18, 22, 28, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
-  padding: 22px 24px;
+  padding: 32px 36px;
   backdrop-filter: blur(16px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
   position: relative;
 }
 
-.contact-form-heading {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  margin-bottom: 2px;
-}
-
-.contact-form-subheading {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  margin-bottom: 16px;
-}
-
-.contact-form-body {
+.contact-v2-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+}
+
+.contact-v2-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.contact-v2-links-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 24px;
+  font-size: 12.5px;
+}
+
+.contact-v2-links-row a,
+.contact-v2-links-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.contact-v2-links-row a:hover,
+.contact-v2-links-row button:hover {
+  color: var(--accent-primary);
+}
+
+.contact-v2-links-sep {
+  color: var(--text-muted);
+  opacity: 0.4;
 }
 
 .contact-form-group {
@@ -4868,50 +4789,21 @@ select.form-input {
   font-weight: 600;
 }
 
-.contact-form-footer-hint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+.error-icon {
+  flex-shrink: 0;
+  line-height: 1;
 }
 
-.faq-link-btn {
-  background: none;
-  border: none;
-  color: #00C9FF;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.2s ease;
-}
-
-.faq-link-btn:hover {
-  color: var(--accent-primary);
-  text-decoration: underline;
-}
-
-/* Mobile Responsive Reordering & Full Width Layout */
-@media (max-width: 868px) {
-  .contact-split-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
+/* Mobile: stack the name/email row, tighten spacing */
+@media (max-width: 640px) {
+  .contact-v2-row {
+    grid-template-columns: 1fr;
   }
-  .contact-form-panel {
-    order: 1;
-    padding: 22px 18px;
+  .contact-v2-card {
+    padding: 24px 20px;
   }
-  .contact-info-col {
-    order: 2;
-  }
-  .contact-title-main {
-    font-size: 28px;
+  .contact-v2-title {
+    font-size: 30px;
   }
 }
 

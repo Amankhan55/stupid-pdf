@@ -189,15 +189,15 @@ Reply directly to this email to respond to {name}.
     [data-ogsc] .reply-link {{ color: #14F195 !important; }}
   </style>
 </head>
-<body className="email-wrapper">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" className="email-wrapper" style="padding: 32px 12px;">
+<body class="email-wrapper">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-wrapper" style="padding: 32px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width: 580px; overflow: hidden; border-radius: 16px;" cellspacing="0" cellpadding="0" border="0" className="email-card">
+        <table role="presentation" width="100%" style="max-width: 580px; overflow: hidden; border-radius: 16px;" cellspacing="0" cellpadding="0" border="0" class="email-card">
           
           <!-- BRAND HEADER WITH ORIGINAL LOGO -->
           <tr>
-            <td style="padding: 24px 28px;" className="email-header">
+            <td style="padding: 24px 28px;" class="email-header">
               <table width="100%" cellspacing="0" cellpadding="0" border="0">
                 <tr>
                   <td valign="middle">
@@ -208,7 +208,7 @@ Reply directly to this email to respond to {name}.
                           <img src="cid:stupidpdf_logo" alt="StupidPDF Logo" width="36" height="36" style="display: block; border-radius: 8px; border: none;" />
                         </td>
                         <td valign="middle">
-                          <span style="font-size: 18px; font-weight: 800; letter-spacing: -0.01em;" className="text-title">
+                          <span style="font-size: 18px; font-weight: 800; letter-spacing: -0.01em;" class="text-title">
                             Stupid<span style="color: #14F195;">PDF</span>
                           </span>
                         </td>
@@ -223,10 +223,10 @@ Reply directly to this email to respond to {name}.
                 </tr>
               </table>
 
-              <h1 style="margin: 16px 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25;" className="text-title">
+              <h1 style="margin: 16px 0 4px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25;" class="text-title">
                 New Contact Message
               </h1>
-              <p style="margin: 0; font-size: 13px;" className="text-muted">
+              <p style="margin: 0; font-size: 13px;" class="text-muted">
                 Received on {timestamp}
               </p>
             </td>
@@ -235,14 +235,14 @@ Reply directly to this email to respond to {name}.
           <!-- SENDER & TOPIC DETAILS -->
           <tr>
             <td style="padding: 24px 28px 16px;">
-              <table width="100%" cellspacing="0" cellpadding="0" border="0" style="padding: 18px;" className="info-surface">
+              <table width="100%" cellspacing="0" cellpadding="0" border="0" style="padding: 18px;" class="info-surface">
                 <tr>
                   <td>
                     <table width="100%" cellspacing="0" cellpadding="0" border="0">
                       <!-- Topic Line -->
                       <tr>
                         <td style="padding-bottom: 14px;">
-                          <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px;" className="text-muted">
+                          <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px;" class="text-muted">
                             TOPIC CATEGORY
                           </span>
                           <span style="display: inline-block; padding: 6px 14px; background-color: {topic_badge_bg}; border: 1px solid {topic_border}; border-radius: 8px; font-size: 13px; font-weight: 800; color: {topic_color};">
@@ -256,18 +256,18 @@ Reply directly to this email to respond to {name}.
                           <table width="100%" cellspacing="0" cellpadding="0" border="0">
                             <tr>
                               <td width="50%" valign="top">
-                                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px;" className="text-muted">
+                                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px;" class="text-muted">
                                   SENDER NAME
                                 </span>
-                                <span style="font-size: 15px; font-weight: 800;" className="text-title">
+                                <span style="font-size: 15px; font-weight: 800;" class="text-title">
                                   👤 {safe_name}
                                 </span>
                               </td>
                               <td width="50%" valign="top">
-                                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px;" className="text-muted">
+                                <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px;" class="text-muted">
                                   REPLY ADDRESS
                                 </span>
-                                <a href="mailto:{safe_email}" style="font-size: 14px; font-weight: 800; text-decoration: underline;" className="reply-link">
+                                <a href="mailto:{safe_email}" style="font-size: 14px; font-weight: 800; text-decoration: underline;" class="reply-link">
                                   ✉️ {safe_email}
                                 </a>
                               </td>
@@ -285,10 +285,10 @@ Reply directly to this email to respond to {name}.
           <!-- USER MESSAGE CONTENT BOX -->
           <tr>
             <td style="padding: 0 28px 24px;">
-              <span style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;" className="text-muted">
+              <span style="display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;" class="text-muted">
                 USER MESSAGE CONTENT
               </span>
-              <div style="padding: 20px; font-size: 15px; line-height: 1.6; font-weight: 500; word-break: break-word;" className="message-box">
+              <div style="padding: 20px; font-size: 15px; line-height: 1.6; font-weight: 500; word-break: break-word;" class="message-box">
                 {safe_message}
               </div>
             </td>
@@ -306,8 +306,8 @@ Reply directly to this email to respond to {name}.
           <!-- FOOTER -->
           <tr>
             <td style="padding: 16px 28px; background-color: rgba(0, 0, 0, 0.05); border-top: 1px solid rgba(128, 128, 128, 0.15); text-align: center;">
-              <p style="margin: 0; font-size: 12px; line-height: 1.5;" className="text-muted">
-                Sent via <strong className="text-title">StupidPDF Contact Gateway</strong>.<br/>
+              <p style="margin: 0; font-size: 12px; line-height: 1.5;" class="text-muted">
+                Sent via <strong class="text-title">StupidPDF Contact Gateway</strong>.<br/>
                 Files processed in-memory. Zero persistent data storage.
               </p>
             </td>
