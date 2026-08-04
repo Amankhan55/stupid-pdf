@@ -27,16 +27,17 @@ Whether it's fixing a bug, adding a new PDF tool, improving the UI, or writing d
 
 Use prefixes to describe the type of change:
 
-| Prefix | Purpose |
-|---|---|
-| `feat/` | New feature or tool |
-| `fix/` | Bug fix |
-| `docs/` | Documentation changes |
-| `style/` | UI / CSS changes |
+| Prefix      | Purpose                               |
+| ----------- | ------------------------------------- |
+| `feat/`     | New feature or tool                   |
+| `fix/`      | Bug fix                               |
+| `docs/`     | Documentation changes                 |
+| `style/`    | UI / CSS changes                      |
 | `refactor/` | Code restructure without new features |
-| `chore/` | Dependency updates, config changes |
+| `chore/`    | Dependency updates, config changes    |
 
 **Examples:**
+
 - `feat/pdf-to-word`
 - `fix/compress-pdf-memory-leak`
 - `docs/update-readme`
@@ -46,6 +47,7 @@ Use prefixes to describe the type of change:
 ## 🔨 Development Workflow
 
 ### Backend (Python / FastAPI)
+
 ```bash
 cd backend
 source venv/bin/activate
@@ -53,6 +55,7 @@ python main.py  # Starts on http://localhost:8000
 ```
 
 ### Frontend (React / Vite)
+
 ```bash
 cd frontend
 npm run dev     # Starts on http://localhost:5173
@@ -98,11 +101,13 @@ Have an idea for a new PDF tool or improvement? [Open a Feature Request issue](h
 ## 📋 Code Style
 
 ### Python (Backend)
+
 - Follow [PEP 8](https://peps.python.org/pep-0008/) conventions.
 - Keep service functions focused and stateless — all PDF processing must use `io.BytesIO` (no disk writes).
 - New tools should add a route in `routes/pdf_routes.py` and service logic in `services/pdf_service.py`.
 
 ### JavaScript / React (Frontend)
+
 - Use functional components with React hooks.
 - Custom SVG icons go in `components/Icons.jsx`.
 - CSS uses the existing design token system in `index.css` — avoid inline styles.
@@ -113,7 +118,7 @@ Have an idea for a new PDF tool or improvement? [Open a Feature Request issue](h
 ## 🛡️ Security
 
 If you discover a security vulnerability, **please do NOT open a public issue**.  
-Instead, use the [Contact page](https://stupidpdf.live/contact) to report it privately.
+Instead, use the [Contact page](https://stupid-pdf-opal.vercel.app/contact) to report it privately.
 
 ---
 

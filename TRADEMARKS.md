@@ -48,4 +48,4 @@ without explicit written permission.
 ## Contact
 
 For trademark or brand licensing inquiries, please contact:
-https://stupidpdf.live/contact
+https://stupid-pdf-opal.vercel.app/contact
