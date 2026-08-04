@@ -6,9 +6,6 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS", "")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
-
 # Path to the original StupidPDF logo image
 LOGO_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "public", "logo.png")
@@ -17,7 +14,11 @@ LOGO_PATH = os.path.abspath(
 
 def send_contact_email(name: str, sender_email: str, message: str, topic: str = "General Question") -> None:
     """Send a contact-form submission to GMAIL_ADDRESS with automatic system theme adaptation (Light Mode & Dark Mode)."""
-    if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
+    # Read env vars at call-time so Render environment changes are always picked up
+    gmail_address = os.getenv("GMAIL_ADDRESS", "").strip()
+    gmail_app_password = os.getenv("GMAIL_APP_PASSWORD", "").replace(" ", "").strip()
+
+    if not gmail_address or not gmail_app_password:
         raise RuntimeError("Email sending is not configured (missing GMAIL_ADDRESS/GMAIL_APP_PASSWORD).")
 
     # Clean up topic & message text
@@ -60,8 +61,8 @@ def send_contact_email(name: str, sender_email: str, message: str, topic: str = 
         topic_icon = "💬"
 
     msg = MIMEMultipart("related")
-    msg["From"] = f"StupidPDF Dispatch <{GMAIL_ADDRESS}>"
-    msg["To"] = GMAIL_ADDRESS
+    msg["From"] = f"StupidPDF Dispatch <{gmail_address}>"
+    msg["To"] = gmail_address
     msg["Reply-To"] = sender_email
     msg["Subject"] = f"⚡ [{topic}] New Message from {name} via StupidPDF"
 
@@ -338,5 +339,5 @@ Reply directly to this email to respond to {name}.
 
     with smtplib.SMTP("smtp.gmail.com", 587) as server:
         server.starttls()
-        server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+        server.login(gmail_address, gmail_app_password)
         server.send_message(msg)
