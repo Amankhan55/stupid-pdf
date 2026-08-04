@@ -1,15 +1,18 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()  # must run before importing modules that read env vars at import time
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 
+from rate_limit import limiter
 from routes.pdf_routes import router as pdf_router
-
-limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
+from routes.contact_routes import router as contact_router
 
 app = FastAPI(
     title="Stupid PDF API",
@@ -32,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(pdf_router)
+app.include_router(contact_router)
 
 
 @app.get("/")

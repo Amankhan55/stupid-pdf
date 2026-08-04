@@ -4,6 +4,7 @@ import ToolPage from "./components/ToolPage";
 import HomePage from "./components/HomePage";
 import Navbar from "./components/Navbar";
 import PrivacyPolicy from "./components/PrivacyPolicy";
+import ContactPage from "./components/ContactPage";
 import { Analytics } from "@vercel/analytics/react";
 import "./index.css";
 
@@ -38,6 +39,8 @@ export default function App() {
         </main>
       ) : activeTool === "privacy-policy" ? (
         <PrivacyPolicy onBack={() => handleSelectTool("home")} />
+      ) : activeTool === "contact" ? (
+        <ContactPage onBack={() => handleSelectTool("home")} />
       ) : (
         <div className="app-layout">
           <Sidebar active={activeTool} onSelect={handleSelectTool} />
@@ -77,6 +80,15 @@ export default function App() {
                 onKeyDown={(e) => e.key === "Enter" && handleSelectTool("privacy-policy")}
               >
                 Privacy Policy
+              </span>
+              <span
+                className="footer-nav-item"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleSelectTool("contact")}
+                onKeyDown={(e) => e.key === "Enter" && handleSelectTool("contact")}
+              >
+                Contact Us
               </span>
             </div>
 
