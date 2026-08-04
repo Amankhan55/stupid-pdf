@@ -326,3 +326,274 @@ export const AnnotateIcon = (props) => (
     <line x1="17.5" y1="14" x2="20.5" y2="14" stroke="#14F195" strokeWidth="1.5" strokeLinecap="round" />
   </svg>
 );
+
+/* ─── 25. REDACT ICON (Crimson/Pink Blocked-Out Lines) ───────────────────── */
+export const RedactIcon = (props) => (
+  <svg {...defaultProps} {...props}>
+    <defs>
+      <linearGradient id="redact-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FF5D73" />
+        <stop offset="100%" stopColor="#9B6DFF" />
+      </linearGradient>
+    </defs>
+    <rect x="3" y="4" width="18" height="16" rx="2" stroke="url(#redact-grad)" strokeWidth="1.8" fill="none" />
+    <line x1="6" y1="8" x2="18" y2="8" stroke="url(#redact-grad)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+    <rect x="6" y="10.5" width="12" height="3.5" rx="0.5" fill="#0B0F17" stroke="url(#redact-grad)" strokeWidth="1.4" />
+    <line x1="6" y1="17" x2="14" y2="17" stroke="url(#redact-grad)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+  </svg>
+);
+
+/* ─── 26. ORIGINAL STUPIDPDF BRAND LOGO ──────────────────────────────────── */
+export const StupidPdfLogo = ({ width = "36", height = "36", className = "", ...props }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 40 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`stupid-pdf-brand-logo ${className}`}
+    {...props}
+  >
+    <defs>
+      <linearGradient id="sp-logo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#1A2333" />
+        <stop offset="100%" stopColor="#0B0F17" />
+      </linearGradient>
+      <linearGradient id="sp-logo-bolt" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14F195" />
+        <stop offset="50%" stopColor="#00C9FF" />
+        <stop offset="100%" stopColor="#9B6DFF" />
+      </linearGradient>
+      <linearGradient id="sp-logo-border" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="rgba(20, 241, 149, 0.8)" />
+        <stop offset="50%" stopColor="rgba(0, 201, 255, 0.6)" />
+        <stop offset="100%" stopColor="rgba(155, 109, 255, 0.4)" />
+      </linearGradient>
+      <filter id="sp-logo-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1.5" result="blur" />
+        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      </filter>
+    </defs>
+    
+    <rect x="2" y="2" width="36" height="36" rx="10" fill="url(#sp-logo-bg)" stroke="url(#sp-logo-border)" strokeWidth="1.5" />
+    <path d="M11 10C11 8.89543 11.8954 8 13 8H22L29 15V29C29 30.1046 28.1046 31 27 31H13C11.8954 31 11 30.1046 11 29V10Z" fill="rgba(255, 255, 255, 0.05)" stroke="url(#sp-logo-bolt)" strokeWidth="1.5" />
+    <path d="M22 8V15H29" stroke="url(#sp-logo-bolt)" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M21 12L14.5 20.5H19.5L18.5 27.5L25.5 19H20.5L21 12Z" fill="url(#sp-logo-bolt)" filter="url(#sp-logo-glow)" />
+    <circle cx="27" cy="27" r="1.5" fill="#14F195" />
+  </svg>
+);
+
+/* ─── 27. ORIGINAL POPULAR SPARK EMBLEM ─────────────────────────────────── */
+export const PopularSparkIcon = ({ width = "16", height = "16", className = "", ...props }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`popular-spark-icon ${className}`}
+    {...props}
+  >
+    <defs>
+      <linearGradient id="pop-spark-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14F195" />
+        <stop offset="50%" stopColor="#00C9FF" />
+        <stop offset="100%" stopColor="#FFBE3D" />
+      </linearGradient>
+    </defs>
+    <path
+      d="M12 2C12.8 6.5 17.5 11.2 22 12C17.5 12.8 12.8 17.5 12 22C11.2 17.5 6.5 12.8 2 12C6.5 11.2 11.2 6.5 12 2Z"
+      fill="url(#pop-spark-grad)"
+    />
+    <circle cx="12" cy="12" r="2" fill="#FFFFFF" opacity="0.9" />
+  </svg>
+);
+
+/* ─── 28. ORIGINAL IN MEMORY ICON ─────────────────────────────────────────── */
+export const InMemoryIcon = ({ width = "14", height = "14", className = "", ...props }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`in-memory-icon ${className}`}
+    {...props}
+  >
+    <defs>
+      <linearGradient id="in-mem-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14F195" />
+        <stop offset="100%" stopColor="#00C9FF" />
+      </linearGradient>
+    </defs>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="url(#in-mem-grad)" />
+  </svg>
+);
+
+/* ─── 29. ORIGINAL PRIVACY SHIELD ICON ────────────────────────────────────── */
+export const PrivacyShieldIcon = ({ width = "14", height = "14", className = "", ...props }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`privacy-shield-icon ${className}`}
+    {...props}
+  >
+    <defs>
+      <linearGradient id="priv-shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00C9FF" />
+        <stop offset="100%" stopColor="#9B6DFF" />
+      </linearGradient>
+    </defs>
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="url(#priv-shield-grad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="rgba(0, 201, 255, 0.15)" />
+    <rect x="9" y="10" width="6" height="5" rx="1" fill="url(#priv-shield-grad)" />
+    <circle cx="12" cy="8.5" r="1.5" stroke="url(#priv-shield-grad)" strokeWidth="1.5" fill="none" />
+  </svg>
+);
+
+/* ─── 30. ORIGINAL STATELESS ENGINE ICON ──────────────────────────────────── */
+export const StatelessEngineIcon = ({ width = "14", height = "14", className = "", ...props }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`stateless-engine-icon ${className}`}
+    {...props}
+  >
+    <defs>
+      <linearGradient id="state-eng-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#9B6DFF" />
+        <stop offset="100%" stopColor="#FF5D73" />
+      </linearGradient>
+    </defs>
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" stroke="url(#state-eng-grad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="rgba(155, 109, 255, 0.15)" />
+    <circle cx="12" cy="12" r="3" fill="url(#state-eng-grad)" />
+  </svg>
+);
+
+/* ─── 31. ORIGINAL COMING SOON LOCK ICON ─────────────────────────────────── */
+export const ComingSoonLockIcon = ({ width = "16", height = "16", className = "", ...props }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={`coming-soon-lock-icon ${className}`}
+    {...props}
+  >
+    <defs>
+      <linearGradient id="cs-lock-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FFBE3D" />
+        <stop offset="100%" stopColor="#F97316" />
+      </linearGradient>
+      <filter id="cs-lock-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1" result="blur" />
+        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      </filter>
+    </defs>
+    <path
+      d="M7 10V7A5 5 0 0 1 17 7V10"
+      stroke="url(#cs-lock-grad)"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      fill="none"
+    />
+    <rect
+      x="5"
+      y="10"
+      width="14"
+      height="11"
+      rx="3"
+      fill="url(#cs-lock-grad)"
+      filter="url(#cs-lock-glow)"
+    />
+    <circle cx="12" cy="14.5" r="1.2" fill="#0B0F17" />
+    <path d="M12 15.5V18" stroke="#0B0F17" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
+/* ─── 32. ORIGINAL CONTACT PAGE ICONS ────────────────────────────────────── */
+export const ResponseClockIcon = ({ width = "20", height = "20", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <defs>
+      <linearGradient id="resp-clk-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14F195" />
+        <stop offset="100%" stopColor="#00C9FF" />
+      </linearGradient>
+    </defs>
+    <circle cx="12" cy="12" r="9" stroke="url(#resp-clk-grad)" strokeWidth="2" fill="rgba(20, 241, 149, 0.1)" />
+    <path d="M12 7V12L15.5 14" stroke="url(#resp-clk-grad)" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="12" cy="12" r="1.5" fill="#14F195" />
+  </svg>
+);
+
+export const GitHubBranchIcon = ({ width = "20", height = "20", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <defs>
+      <linearGradient id="gh-node-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00C9FF" />
+        <stop offset="100%" stopColor="#14F195" />
+      </linearGradient>
+    </defs>
+    <path d="M6 3V15" stroke="url(#gh-node-grad)" strokeWidth="2.2" strokeLinecap="round" />
+    <circle cx="6" cy="18" r="3" fill="url(#gh-node-grad)" />
+    <circle cx="6" cy="6" r="3" fill="url(#gh-node-grad)" />
+    <path d="M6 9C9 9 12 11 12 14" stroke="url(#gh-node-grad)" strokeWidth="2.2" strokeLinecap="round" />
+    <circle cx="15" cy="16" r="3" fill="url(#gh-node-grad)" />
+  </svg>
+);
+
+export const ContactUserIcon = ({ width = "16", height = "16", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <path d="M20 21C20 17.134 16.4183 14 12 14C7.58172 14 4 17.134 4 21" stroke="#14F195" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="12" cy="7" r="4" stroke="#14F195" strokeWidth="2" fill="rgba(20, 241, 149, 0.15)" />
+  </svg>
+);
+
+export const ContactEmailIcon = ({ width = "16", height = "16", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="3" stroke="#00C9FF" strokeWidth="2" fill="rgba(0, 201, 255, 0.1)" />
+    <path d="M4 7L12 13L20 7" stroke="#00C9FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const TopicQuestionIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3" />
+  </svg>
+);
+
+export const TopicBugIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="8" y="6" width="8" height="14" rx="4" />
+    <line x1="6" y1="10" x2="18" y2="10" />
+    <line x1="6" y1="14" x2="18" y2="14" />
+    <line x1="6" y1="18" x2="18" y2="18" />
+    <path d="M12 2v4" />
+  </svg>
+);
+
+export const TopicFeatureIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.55.59 2.97 1.5 4 .76.76 1.23 1.52 1.41 2.5" />
+  </svg>
+);
+
+export const TopicPartnershipIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+

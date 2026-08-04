@@ -25,6 +25,7 @@ import {
   pdfToExcel,
   addSignature,
   annotatePdf,
+  redactPdf,
 } from "../api/pdf";
 import {
   MergeIcon, SplitIcon, CompressIcon, ExtractIcon, DeleteIcon,
@@ -33,11 +34,12 @@ import {
   WordToPdfIcon, PdfToWordIcon, UnlockIcon,
   ProtectIcon, WatermarkIcon, PageNumbersIcon,
   ExtractTextIcon, ExtractImagesIcon, ExcelIcon,
-  SignatureIcon, AnnotateIcon,
+  SignatureIcon, AnnotateIcon, RedactIcon,
 } from "./Icons";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorkerUrl from "pdfjs-dist/build/pdf.worker.min.js?url";
 import { TOOL_RESTRICTIONS, validateFiles } from "../utils/fileValidation";
+import { formatBytes } from "../utils/format";
 
 // Bundled locally (instead of a version-pinned CDN URL) so the worker always
 // matches the pdfjs-dist version actually resolved by npm, and the app has
@@ -371,18 +373,28 @@ function PdfPageCanvas({ file, pageNum = 1, onDimensions }) {
 }
 
 // ─── Signature Position Preview ───────────────────────────────────────────────
-function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, height, onChange }) {
+function SignaturePositionPreview({ pdfFile, pageNum = 1, onPageChange, sigFile, x, y, width, height, onChange, onResize }) {
   const wrapRef = useRef(null);
   const isDraggingRef = useRef(false);
+  const isResizingRef = useRef(false);
+  const draggedRef = useRef(false); // true once real movement happened, to suppress the trailing click-to-place
   const dragOffsetRef = useRef({ dx: 0, dy: 0 });
   const [sigUrl, setSigUrl] = useState(null);
   const [livePos, setLivePos] = useState({ x, y });
+  const [liveSize, setLiveSize] = useState({ width, height });
   const [pageDims, setPageDims] = useState({ width: 595, height: 842, totalPages: 1 });
 
   const PDF_W = pageDims.width;
   const PDF_H = pageDims.height;
 
   useEffect(() => { setLivePos({ x, y }); }, [x, y]);
+  useEffect(() => { setLiveSize({ width, height }); }, [width, height]);
+
+  // Keep the requested page in range once we know the real page count
+  // (e.g. after switching to a shorter PDF).
+  useEffect(() => {
+    if (pageNum > pageDims.totalPages) onPageChange(pageDims.totalPages);
+  }, [pageDims.totalPages]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!sigFile) { setSigUrl(null); return; }
@@ -406,10 +418,12 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
   }
 
   function handlePageClick(e) {
-    if (isDraggingRef.current) return;
+    // A native "click" also fires right after releasing a drag — ignore that
+    // one so the box doesn't jump to re-center on the release point.
+    if (draggedRef.current) { draggedRef.current = false; return; }
     const pos  = clientToPdf(e);
-    const newX = clamp(pos.x - width  / 2, PDF_W - width);
-    const newY = clamp(pos.y - height / 2, PDF_H - height);
+    const newX = clamp(pos.x - liveSize.width  / 2, PDF_W - liveSize.width);
+    const newY = clamp(pos.y - liveSize.height / 2, PDF_H - liveSize.height);
     setLivePos({ x: newX, y: newY });
     onChange(newX, newY);
   }
@@ -420,36 +434,99 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
     const pos = clientToPdf(e);
     dragOffsetRef.current = { dx: pos.x - livePos.x, dy: pos.y - livePos.y };
     isDraggingRef.current = true;
+    draggedRef.current = false;
+  }
+
+  function handleResizeMouseDown(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    isResizingRef.current = true;
   }
 
   function handleMouseMove(e) {
+    // Defense-in-depth: if the mouse button was released somewhere that
+    // never reached our mouseup handler (see the window-level listener
+    // below), don't keep dragging/resizing on every subsequent hover.
+    if (e.buttons === 0 && (isDraggingRef.current || isResizingRef.current)) {
+      isDraggingRef.current = false;
+      isResizingRef.current = false;
+      return;
+    }
+    if (isResizingRef.current) {
+      const pos = clientToPdf(e);
+      const newW = Math.max(20, clamp(pos.x - livePos.x, PDF_W - livePos.x));
+      const newH = Math.max(20, clamp(pos.y - livePos.y, PDF_H - livePos.y));
+      setLiveSize({ width: newW, height: newH });
+      return;
+    }
     if (!isDraggingRef.current) return;
+    draggedRef.current = true;
     const pos  = clientToPdf(e);
-    const newX = clamp(pos.x - dragOffsetRef.current.dx, PDF_W - width);
-    const newY = clamp(pos.y - dragOffsetRef.current.dy, PDF_H - height);
+    const newX = clamp(pos.x - dragOffsetRef.current.dx, PDF_W - liveSize.width);
+    const newY = clamp(pos.y - dragOffsetRef.current.dy, PDF_H - liveSize.height);
     setLivePos({ x: newX, y: newY });
   }
 
   function handleMouseUp() {
+    if (isResizingRef.current) {
+      isResizingRef.current = false;
+      onResize(liveSize.width, liveSize.height);
+      return;
+    }
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     onChange(livePos.x, livePos.y);
   }
 
+  // Catch a mouseup/touchend that lands outside the preview box entirely
+  // (e.g. a fast drag released past the element's edge) — without this,
+  // isDraggingRef/isResizingRef can get stuck "true" forever, and every
+  // later mouse movement over the preview keeps dragging or resizing the
+  // box with no button held.
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  });
+
   const pctX = (livePos.x / PDF_W) * 100;
   const pctY = (livePos.y / PDF_H) * 100;
-  const pctW = (width     / PDF_W) * 100;
-  const pctH = (height    / PDF_H) * 100;
+  const pctW = (liveSize.width  / PDF_W) * 100;
+  const pctH = (liveSize.height / PDF_H) * 100;
 
   return (
     <div className="sig-pos-preview-wrapper">
       <div className="sig-pos-preview-header">
-        <span className="sig-pos-preview-label">📄 Click on actual page to place · Drag to reposition</span>
-        <span className="sig-coords-live-badge">
-          <span className="coords-axis">X</span>{Math.round(livePos.x)}
-          <span className="coords-sep">·</span>
-          <span className="coords-axis">Y</span>{Math.round(livePos.y)}
-        </span>
+        <span className="sig-pos-preview-label">📄 Click to place · Drag box to move · Drag corner to resize</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className="sig-coords-live-badge">
+            <span className="coords-axis">X</span>{Math.round(livePos.x)}
+            <span className="coords-sep">·</span>
+            <span className="coords-axis">Y</span>{Math.round(livePos.y)}
+          </span>
+          <div className="ann-page-nav">
+            <button
+              type="button"
+              className="ann-nav-btn"
+              disabled={pageNum <= 1}
+              onClick={() => onPageChange(Math.max(1, pageNum - 1))}
+            >
+              ‹
+            </button>
+            <span>Page {pageNum} of {pageDims.totalPages}</span>
+            <button
+              type="button"
+              className="ann-nav-btn"
+              disabled={pageNum >= pageDims.totalPages}
+              onClick={() => onPageChange(Math.min(pageDims.totalPages, pageNum + 1))}
+            >
+              ›
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="sig-page-outer">
@@ -486,6 +563,7 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
               }}
               onMouseDown={handleSigMouseDown}
               onTouchStart={handleSigMouseDown}
+              onClick={(e) => e.stopPropagation()}
             >
               {sigUrl ? (
                 <img
@@ -505,6 +583,12 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
                   <circle cx="2" cy="8" r="1"/><circle cx="5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/>
                 </svg>
               </div>
+              <div
+                className="sig-resize-handle"
+                title="Drag to resize"
+                onMouseDown={handleResizeMouseDown}
+                onTouchStart={handleResizeMouseDown}
+              />
             </div>
           </div>
         </div>
@@ -514,6 +598,10 @@ function SignaturePositionPreview({ pdfFile, pageNum = 1, sigFile, x, y, width, 
 }
 
 // ─── Annotate PDF Live Preview Component ─────────────────────────────────────
+// NOTE: RedactPositionPreview (below) is a trimmed copy of this component's
+// drag-rectangle mechanics (clientToPdf conversion, mouse/touch handlers,
+// the <5px accidental-click threshold). If you fix a bug here — especially
+// in touch handling or the rubberband math — check RedactPositionPreview too.
 function AnnotatePositionPreview({
   pdfFile,
   pageNum,
@@ -552,6 +640,7 @@ function AnnotatePositionPreview({
   }
 
   function handleMouseMove(e) {
+    if (e.buttons === 0 && isDrawingRef.current) { isDrawingRef.current = false; setDrawingBox(null); return; }
     if (!isDrawingRef.current) return;
     const pos = clientToPdf(e);
     setDrawingBox((prev) => prev ? { ...prev, currentX: pos.x, currentY: pos.y } : null);
@@ -594,6 +683,17 @@ function AnnotatePositionPreview({
       });
     }
   }
+
+  // See the matching note in SignaturePositionPreview — a mouseup released
+  // outside this element would otherwise leave isDrawingRef stuck "true".
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  });
 
   const currentPageAnns = annotations
     .map((ann, originalIdx) => ({ ...ann, originalIdx }))
@@ -710,9 +810,185 @@ function AnnotatePositionPreview({
 }
 
 
+// Trimmed copy of AnnotatePositionPreview's drag-rectangle mechanics (see the
+// note above that component) — redaction has no type/color/content choice,
+// every rect is a solid black permanent removal, not a translucent overlay.
+function RedactPositionPreview({ pdfFile, pageNum, onPageChange, redactions, onAddRedaction, onRemoveRedaction }) {
+  const wrapRef = useRef(null);
+  const [pageDims, setPageDims] = useState({ width: 595, height: 842, totalPages: 1 });
+  const [drawingBox, setDrawingBox] = useState(null);
+  const isDrawingRef = useRef(false);
+
+  const PDF_W = pageDims.width;
+  const PDF_H = pageDims.height;
+
+  function clientToPdf(e) {
+    if (!wrapRef.current) return { x: 0, y: 0 };
+    const rect = wrapRef.current.getBoundingClientRect();
+    const src  = e.touches ? e.touches[0] : e;
+    return {
+      x: Math.max(0, Math.min(PDF_W, ((src.clientX - rect.left) / rect.width) * PDF_W)),
+      y: Math.max(0, Math.min(PDF_H, ((src.clientY - rect.top) / rect.height) * PDF_H)),
+    };
+  }
+
+  function handleMouseDown(e) {
+    if (e.target.closest('.ann-overlay-box') || e.target.closest('.ann-page-nav')) return;
+    e.preventDefault();
+    const pos = clientToPdf(e);
+    isDrawingRef.current = true;
+    setDrawingBox({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
+  }
+
+  function handleMouseMove(e) {
+    if (e.buttons === 0 && isDrawingRef.current) { isDrawingRef.current = false; setDrawingBox(null); return; }
+    if (!isDrawingRef.current) return;
+    const pos = clientToPdf(e);
+    setDrawingBox((prev) => prev ? { ...prev, currentX: pos.x, currentY: pos.y } : null);
+  }
+
+  function handleMouseUp() {
+    if (!isDrawingRef.current || !drawingBox) return;
+    isDrawingRef.current = false;
+
+    const x1 = Math.min(drawingBox.startX, drawingBox.currentX);
+    const y1 = Math.min(drawingBox.startY, drawingBox.currentY);
+    const x2 = Math.max(drawingBox.startX, drawingBox.currentX);
+    const y2 = Math.max(drawingBox.startY, drawingBox.currentY);
+
+    setDrawingBox(null);
+
+    // Ignore tiny accidental clicks (<5px)
+    if (Math.abs(x2 - x1) < 5 && Math.abs(y2 - y1) < 5) return;
+
+    onAddRedaction({
+      page: pageNum,
+      x: Math.round(x1),
+      y: Math.round(y1),
+      x2: Math.round(x2),
+      y2: Math.round(y2),
+    });
+  }
+
+  // See the matching note in SignaturePositionPreview — a mouseup released
+  // outside this element would otherwise leave isDrawingRef stuck "true".
+  useEffect(() => {
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchend', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchend', handleMouseUp);
+    };
+  });
+
+  const currentPageRedactions = redactions
+    .map((r, originalIdx) => ({ ...r, originalIdx }))
+    .filter((r) => r.page === pageNum);
+
+  return (
+    <div className="ann-preview-wrapper">
+      <div className="ann-preview-header">
+        <span className="ann-preview-label">
+          ⬛ Click &amp; drag on the PDF page to mark an area for permanent redaction
+        </span>
+        <div className="ann-page-nav">
+          <button
+            type="button"
+            className="ann-nav-btn"
+            disabled={pageNum <= 1}
+            onClick={() => onPageChange(Math.max(1, pageNum - 1))}
+          >
+            ‹
+          </button>
+          <span>Page {pageNum} of {pageDims.totalPages}</span>
+          <button
+            type="button"
+            className="ann-nav-btn"
+            disabled={pageNum >= pageDims.totalPages}
+            onClick={() => onPageChange(Math.min(pageDims.totalPages, pageNum + 1))}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div className="sig-page-outer">
+        <div
+          ref={wrapRef}
+          className="sig-page-inner"
+          style={{ paddingTop: `${(PDF_H / PDF_W) * 100}%`, cursor: "crosshair" }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleMouseDown}
+          onTouchMove={handleMouseMove}
+          onTouchEnd={handleMouseUp}
+        >
+          <div className="sig-page-content">
+            {pdfFile ? (
+              <PdfPageCanvas file={pdfFile} pageNum={pageNum} onDimensions={setPageDims} />
+            ) : (
+              <div className="sig-page-lines">
+                <div className="sig-line sig-line-h" style={{ top: '10%' }} />
+                <div className="sig-line sig-line-h" style={{ top: '90%' }} />
+              </div>
+            )}
+
+            {/* Live drawing box rubberband */}
+            {drawingBox && (
+              <div
+                className="ann-rubberband"
+                style={{
+                  left: `${(Math.min(drawingBox.startX, drawingBox.currentX) / PDF_W) * 100}%`,
+                  top: `${(Math.min(drawingBox.startY, drawingBox.currentY) / PDF_H) * 100}%`,
+                  width: `${(Math.abs(drawingBox.currentX - drawingBox.startX) / PDF_W) * 100}%`,
+                  height: `${(Math.abs(drawingBox.currentY - drawingBox.startY) / PDF_H) * 100}%`,
+                  borderColor: "#000000",
+                  background: "rgba(0,0,0,0.55)",
+                }}
+              >
+                <span className="ann-box-coords">
+                  {Math.round(Math.min(drawingBox.startX, drawingBox.currentX))}, {Math.round(Math.min(drawingBox.startY, drawingBox.currentY))}
+                </span>
+              </div>
+            )}
+
+            {/* Existing page redactions overlay */}
+            {currentPageRedactions.map((r) => (
+              <div
+                key={r.originalIdx}
+                className="ann-overlay-box"
+                style={{
+                  left: `${(r.x / PDF_W) * 100}%`,
+                  top: `${(r.y / PDF_H) * 100}%`,
+                  width: `${((r.x2 - r.x) / PDF_W) * 100}%`,
+                  height: `${((r.y2 - r.y) / PDF_H) * 100}%`,
+                  background: "#000000",
+                  borderColor: "#000000",
+                }}
+              >
+                <button
+                  type="button"
+                  className="ann-box-del-btn"
+                  onClick={(e) => { e.stopPropagation(); onRemoveRedaction(r.originalIdx); }}
+                  title="Remove redaction"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ─── Tool Configs ──────────────────────────────────────────────────────────────
 const TOOL_META = {
-  "merge":            { icon: MergeIcon,        title: "Merge PDFs",          desc: "Combine multiple PDF files into a single document in the order you upload them.",                     tag: "Combine" },
+  "merge":            { icon: MergeIcon,         title: "Merge PDFs",          desc: "Combine multiple PDF files into a single document in the order you upload them.",                     tag: "Combine" },
   "split":            { icon: SplitIcon,         title: "Split PDF",           desc: "Split a PDF into separate parts at the page numbers you specify.",                                    tag: "Divide" },
   "compress":         { icon: CompressIcon,      title: "Compress PDF",        desc: "Reduce the file size of your PDF by removing redundant data and compressing streams.",                tag: "Optimize" },
   "extract-pages":    { icon: ExtractIcon,       title: "Extract Pages",       desc: "Pull out specific pages from your PDF and save them as a new document.",                             tag: "Select" },
@@ -726,7 +1002,7 @@ const TOOL_META = {
   "pdf-to-images":    { icon: PdfToImageIcon,    title: "PDF to Images",       desc: "Convert PDF pages into PNG or JPG images packed into a ZIP.",                                        tag: "Convert" },
   "images-to-pdf":    { icon: ImageToPdfIcon,    title: "Images to PDF",       desc: "Convert a list of images into a single combined PDF document.",                                      tag: "Convert" },
   "word-to-pdf":      { icon: WordToPdfIcon,     title: "Word to PDF",         desc: "Convert Microsoft Word .docx documents into PDF format.",                                            tag: "Convert" },
-  "pdf-to-word":      { icon: PdfToWordIcon,     title: "PDF to Word",         desc: "Convert PDF documents back into editable Word .docx files.",                                        tag: "Convert", comingSoon: true },
+  "pdf-to-word":      { icon: PdfToWordIcon,     title: "PDF to Word",         desc: "Convert PDF documents back into editable Word .docx files.",                                        tag: "Convert" },
   "unlock-pdf":       { icon: UnlockIcon,        title: "Unlock PDF",          desc: "Remove password protection from a locked PDF.",                                                      tag: "Security" },
   "protect-pdf":      { icon: ProtectIcon,       title: "Protect PDF",         desc: "Encrypt your PDF with AES-256 password protection to keep it secure.",                              tag: "Security" },
   "add-watermark":    { icon: WatermarkIcon,     title: "Add Watermark",       desc: "Overlay a custom text watermark on every page of your PDF.",                                        tag: "Editing" },
@@ -736,7 +1012,19 @@ const TOOL_META = {
   "pdf-to-excel":     { icon: ExcelIcon,         title: "PDF to Excel",        desc: "Extract tables from your PDF and convert them to an editable .xlsx spreadsheet.",                   tag: "Convert", comingSoon: true },
   "add-signature":    { icon: SignatureIcon,     title: "Add Signature",       desc: "Draw or upload a signature and embed it onto a specific page of your PDF.",                        tag: "Editing" },
   "annotate-pdf":     { icon: AnnotateIcon,      title: "Annotate PDF",        desc: "Add text annotations and highlight color overlays to specific areas of your PDF.",                  tag: "Editing", comingSoon: true },
+  "redact-pdf":       { icon: RedactIcon,        title: "Redact PDF",          desc: "Permanently black out and strip sensitive text or regions — unlike a watermark, the underlying content is deleted, not just covered.", tag: "Security" },
 };
+
+// Tools where the same operation can be run across many files at once,
+// returning a single result for one file or a ZIP for several. Excludes
+// page-index operations (extract/delete/rearrange/etc — not naturally
+// "same settings across arbitrary documents") and tools needing per-document
+// visual placement (signature/annotate/redact).
+const BATCH_TOOL_IDS = [
+  "compress", "rotate-pages", "add-watermark", "add-page-numbers",
+  "protect-pdf", "unlock-pdf", "extract-text", "extract-images",
+  "pdf-to-images", "pdf-to-word", "word-to-pdf",
+];
 
 // ─── Main ToolPage Component ───────────────────────────────────────────────────
 export default function ToolPage({ toolId, initialFile, onSelectTool }) {
@@ -744,9 +1032,12 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
     initialFile ? (Array.isArray(initialFile) ? initialFile : [initialFile]) : []
   );
   const [files2, setFiles2] = useState([]);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(null); // null | "loading" | "success" | "error"
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState(0);
+
+  // Page info fetched from FileUpload's onPageInfo callback
+  const [filePageInfo, setFilePageInfo] = useState({}); // { [filename]: { page_count } }
 
   // Form inputs — existing
   const [splitAt, setSplitAt] = useState("");
@@ -791,12 +1082,15 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
   const [annY2, setAnnY2] = useState(120);
   const [annContent, setAnnContent] = useState("");
   const [annColor, setAnnColor] = useState("#FFFF00");
+  const [redactions, setRedactions] = useState([]);
+  const [redactPage, setRedactPage] = useState(1);
 
   const progressTimerRef = useRef(null);
   const meta = TOOL_META[toolId] || {};
 
   function resetState() {
     setFiles([]); setFiles2([]); setStatus(null); setMessage(""); setProgress(0);
+    setFilePageInfo({});
     setSplitAt(""); setPages(""); setAngle("90"); setTimes("1"); setPositions("");
     setAddPosition("1"); setRearrangeOrder([]); setTotalPages(0);
     setCompressLevel("medium"); setCompressSavings(null); setOutputFilename("");
@@ -810,6 +1104,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
     setAnnotations([]); setAnnType("highlight"); setAnnPage(1);
     setAnnX(50); setAnnY(100); setAnnX2(300); setAnnY2(120);
     setAnnContent(""); setAnnColor("#FFFF00");
+    setRedactions([]); setRedactPage(1);
   }
 
   function handleRearrangeFiles(newFiles) {
@@ -822,102 +1117,186 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
     setRearrangeOrder(Array.from({ length: count }, (_, i) => i + 1));
   }
 
+  // ─── Step-by-step progress messages ────────────────────────────────────────
+  const PROGRESS_STEPS = [
+    { at:  0, msg: "Uploading PDF…" },
+    { at: 20, msg: "Reading document…" },
+    { at: 42, msg: "Processing pages…" },
+    { at: 62, msg: "Applying changes…" },
+    { at: 78, msg: "Generating output…" },
+    { at: 92, msg: "Almost done…" },
+  ];
+
+  function getStepMessage(pct) {
+    let msg = PROGRESS_STEPS[0].msg;
+    for (const step of PROGRESS_STEPS) {
+      if (pct >= step.at) msg = step.msg;
+    }
+    return msg;
+  }
+
   // ─── Smooth progress animation ─────────────────────────────────────────────
   function startProgressAnimation() {
     setProgress(0);
-    // After upload reaches 50%, simulate server processing from 50→90
     let fake = 50;
     progressTimerRef.current = setInterval(() => {
-      fake += (90 - fake) * 0.04; // exponential approach to 90
-      setProgress(Math.min(fake, 90));
+      fake += (90 - fake) * 0.04;
+      const clamped = Math.min(fake, 90);
+      setProgress(clamped);
+      setMessage(getStepMessage(clamped));
     }, 80);
   }
 
   function finishProgress() {
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     setProgress(100);
+    setMessage("Complete!");
   }
 
   function onUploadProgress(ev) {
     if (ev.total) {
-      const uploadPct = (ev.loaded / ev.total) * 50; // Upload = 0→50%
+      const uploadPct = (ev.loaded / ev.total) * 50;
       setProgress(uploadPct);
+      setMessage(getStepMessage(uploadPct));
       if (uploadPct >= 49) startProgressAnimation();
     }
   }
 
   useEffect(() => () => { if (progressTimerRef.current) clearInterval(progressTimerRef.current); }, []);
 
+  // Redactions are keyed to a specific page of a specific file — if the user
+  // swaps in a different file, stale rectangles from the old file would
+  // otherwise silently redact the wrong region of the new one.
+  useEffect(() => {
+    if (toolId === "redact-pdf") {
+      setRedactions([]);
+      setRedactPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolId, files[0]?.name, files[0]?.size]);
+
   async function handleSubmit() {
-    if (files.length === 0) { setStatus("error"); setMessage("Please upload a PDF file first."); return; }
-    setStatus("loading"); setMessage("Processing your PDF…"); setProgress(0);
+    // ── Pre-flight Form Validations ─────────────────────────────────────────
+    if (files.length === 0) {
+      setStatus("error");
+      setMessage("Please upload a PDF file first.");
+      return;
+    }
+
+    // Tool-specific pre-flight checks before starting progress animation
+    try {
+      switch (toolId) {
+        case "merge":
+          if (files.length < 2) throw new Error("Please upload at least 2 PDF files to merge.");
+          break;
+        case "split":
+          if (!splitAt.trim()) throw new Error("Please enter page numbers to split at (e.g. 3,6).");
+          break;
+        case "extract-pages":
+          if (!pages.trim()) throw new Error("Please enter page numbers to extract (e.g. 1, 3, 5).");
+          break;
+        case "delete-pages":
+          if (!pages.trim()) throw new Error("Please enter page numbers to delete (e.g. 2, 4).");
+          break;
+        case "rearrange-pages":
+          if (rearrangeOrder.length === 0) throw new Error("Please enter total page count and set page order.");
+          break;
+        case "insert-blank":
+          if (!positions.trim()) throw new Error("Please enter page positions for blank pages (e.g. 1, 4).");
+          break;
+        case "duplicate-pages":
+          if (!times || parseInt(times) < 1) throw new Error("Please enter a valid number of copies (1 or more).");
+          break;
+        case "add-pdf":
+          if (files2.length === 0) throw new Error("Please upload the secondary PDF file to insert.");
+          if (!addPosition || parseInt(addPosition) < 1) throw new Error("Please enter a valid page position (1 or greater).");
+          break;
+        case "unlock-pdf":
+          if (!pdfPassword.trim()) throw new Error("Please enter the PDF password to unlock.");
+          break;
+        case "protect-pdf":
+          if (!protectPassword.trim()) throw new Error("Please enter a password.");
+          if (protectPassword !== protectConfirm) throw new Error("Passwords do not match. Please re-enter.");
+          break;
+        case "add-watermark":
+          if (!watermarkText.trim()) throw new Error("Please enter watermark text.");
+          break;
+        case "add-signature":
+          if (!sigFile) throw new Error("Please draw or upload your signature.");
+          break;
+        case "annotate-pdf":
+          if (annotations.length === 0) throw new Error("Please add at least one annotation.");
+          break;
+        case "redact-pdf":
+          if (redactions.length === 0) throw new Error("Please mark at least one area to redact.");
+          break;
+        default:
+          break;
+      }
+    } catch (valErr) {
+      setStatus("error");
+      setMessage(valErr.message);
+      return;
+    }
+
+    // ── All pre-flight checks passed: start processing ─────────────────────
+    setStatus("loading"); setMessage("Uploading PDF…"); setProgress(0);
     startProgressAnimation();
 
     try {
       switch (toolId) {
         case "merge":
-          if (files.length < 2) throw new Error("Please upload at least 2 PDF files.");
           await mergePdfs(files, outputFilename, onUploadProgress); break;
         case "split":
-          if (!splitAt.trim()) throw new Error("Please enter page numbers to split at.");
           await splitPdf(files[0], splitAt.trim(), outputFilename, onUploadProgress); break;
         case "compress": {
-          const savings = await compressPdf(files[0], compressLevel, outputFilename, onUploadProgress);
+          const savings = await compressPdf(files, compressLevel, outputFilename, onUploadProgress);
           setCompressSavings(savings); break;
         }
         case "extract-pages":
-          if (!pages.trim()) throw new Error("Please enter page numbers to extract.");
           await extractPages(files[0], pages.trim(), outputFilename, onUploadProgress); break;
         case "delete-pages":
-          if (!pages.trim()) throw new Error("Please enter page numbers to delete.");
           await deletePages(files[0], pages.trim(), outputFilename, onUploadProgress); break;
         case "rearrange-pages":
-          if (rearrangeOrder.length === 0) throw new Error("Please upload a PDF and set page order.");
           await rearrangePages(files[0], rearrangeOrder.join(","), outputFilename, onUploadProgress); break;
         case "rotate-pages":
-          await rotatePages(files[0], pages.trim(), parseInt(angle), outputFilename, onUploadProgress); break;
+          await rotatePages(files, pages.trim(), parseInt(angle), outputFilename, onUploadProgress); break;
         case "duplicate-pages":
           await duplicatePages(files[0], pages.trim(), parseInt(times), outputFilename, onUploadProgress); break;
         case "reverse":
           await reversePdf(files[0], outputFilename, onUploadProgress); break;
         case "insert-blank":
-          if (!positions.trim()) throw new Error("Please enter page positions for blank pages.");
           await insertBlankPages(files[0], positions.trim(), outputFilename, onUploadProgress); break;
         case "add-pdf":
-          if (files2.length === 0) throw new Error("Please upload the PDF to insert.");
           await addPdfToExisting(files[0], files2[0], parseInt(addPosition), outputFilename, onUploadProgress); break;
         case "pdf-to-images":
-          await pdfToImages(files[0], imageFormat, outputFilename, onUploadProgress); break;
+          await pdfToImages(files, imageFormat, outputFilename, onUploadProgress); break;
         case "images-to-pdf":
           await imagesToPdf(files, outputFilename, onUploadProgress); break;
         case "word-to-pdf":
-          await wordToPdf(files[0], outputFilename, onUploadProgress); break;
+          await wordToPdf(files, outputFilename, onUploadProgress); break;
         case "pdf-to-word":
-          await pdfToWord(files[0], outputFilename, onUploadProgress); break;
+          await pdfToWord(files, outputFilename, onUploadProgress); break;
         case "unlock-pdf":
-          await unlockPdf(files[0], pdfPassword, outputFilename, onUploadProgress); break;
-        // ─── New tools ───────────────────────────────────────────────────────
+          await unlockPdf(files, pdfPassword, outputFilename, onUploadProgress); break;
         case "protect-pdf":
-          if (!protectPassword.trim()) throw new Error("Please enter a password.");
-          if (protectPassword !== protectConfirm) throw new Error("Passwords do not match.");
-          await protectPdf(files[0], protectPassword, outputFilename, onUploadProgress); break;
+          await protectPdf(files, protectPassword, outputFilename, onUploadProgress); break;
         case "add-watermark":
-          if (!watermarkText.trim()) throw new Error("Please enter watermark text.");
-          await addWatermark(files[0], watermarkText, watermarkOpacity, watermarkAngle, watermarkFontSize, watermarkColor, outputFilename, onUploadProgress); break;
+          await addWatermark(files, watermarkText, watermarkOpacity, watermarkAngle, watermarkFontSize, watermarkColor, outputFilename, onUploadProgress); break;
         case "add-page-numbers":
-          await addPageNumbers(files[0], pageNumPosition, pageNumFontSize, pageNumStart, pageNumPrefix, outputFilename, onUploadProgress); break;
+          await addPageNumbers(files, pageNumPosition, pageNumFontSize, pageNumStart, pageNumPrefix, outputFilename, onUploadProgress); break;
         case "extract-text":
-          await extractText(files[0], outputFilename, onUploadProgress); break;
+          await extractText(files, outputFilename, onUploadProgress); break;
         case "extract-images":
-          await extractImages(files[0], outputFilename, onUploadProgress); break;
+          await extractImages(files, outputFilename, onUploadProgress); break;
         case "pdf-to-excel":
           await pdfToExcel(files[0], outputFilename, onUploadProgress); break;
         case "add-signature":
-          if (!sigFile) throw new Error("Please draw or upload your signature.");
           await addSignature(files[0], sigFile, sigPageNum, sigX, sigY, sigWidth, sigHeight, outputFilename, onUploadProgress); break;
         case "annotate-pdf":
-          if (annotations.length === 0) throw new Error("Please add at least one annotation.");
           await annotatePdf(files[0], annotations, outputFilename, onUploadProgress); break;
+        case "redact-pdf":
+          await redactPdf(files[0], redactions, outputFilename, onUploadProgress); break;
         default:
           throw new Error("Unknown tool.");
       }
@@ -970,18 +1349,67 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
                 ))}
               </div>
             </div>
-            {compressSavings && compressSavings.originalSize > 0 && (
-              <div className="info-panel" style={{ marginTop: "16px" }}>
-                <div className="info-stat"><div className="stat-value">{(compressSavings.originalSize / 1024).toFixed(0)} KB</div><div className="stat-label">Original Size</div></div>
-                <div className="info-stat"><div className="stat-value">{(compressSavings.compressedSize / 1024).toFixed(0)} KB</div><div className="stat-label">Compressed Size</div></div>
-                <div className="info-stat">
-                  <div className="stat-value" style={{ background: "linear-gradient(135deg, #10b981, #34d399)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                    {Math.max(0, Math.round((1 - compressSavings.compressedSize / compressSavings.originalSize) * 100))}%
+            {compressSavings && compressSavings.originalSize > 0 && (() => {
+              const orig = compressSavings.originalSize;
+              const comp = compressSavings.compressedSize;
+              const savedBytes = Math.max(0, orig - comp);
+              const pct = Math.max(0, Math.round((1 - comp / orig) * 100));
+
+              return (
+                <div className="compression-savings-card" role="status" aria-live="polite">
+                  <div className="savings-card-header">
+                    <div className="savings-title">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                      <span>Compression Results</span>
+                    </div>
+                    <span className="savings-badge">
+                      ⚡ {pct}% Smaller
+                    </span>
                   </div>
-                  <div className="stat-label">Size Reduction</div>
+
+                  <div className="savings-grid">
+                    {/* Original Size */}
+                    <div className="savings-stat-box">
+                      <div className="savings-stat-label">Original Size</div>
+                      <div className="savings-stat-value text-muted">
+                        {formatBytes(orig)}
+                      </div>
+                      <div className="savings-stat-sub">Before compression</div>
+                    </div>
+
+                    {/* Arrow Divider */}
+                    <div className="savings-arrow" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                      </svg>
+                    </div>
+
+                    {/* Compressed Size */}
+                    <div className="savings-stat-box">
+                      <div className="savings-stat-label">Compressed Size</div>
+                      <div className="savings-stat-value text-primary">
+                        {formatBytes(comp)}
+                      </div>
+                      <div className="savings-stat-sub">After compression</div>
+                    </div>
+
+                    {/* Space Saved */}
+                    <div className="savings-stat-box savings-highlight-box">
+                      <div className="savings-stat-label">Space Saved</div>
+                      <div className="savings-stat-value text-accent">
+                        -{formatBytes(savedBytes)}
+                      </div>
+                      <div className="savings-bar-track">
+                        <div className="savings-bar-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         );
 
@@ -989,8 +1417,43 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         return (
           <div className="form-group">
             <label>Split Before Pages</label>
-            <input className="form-input" placeholder="e.g. 3, 6  (split before page 3 and 6)" value={splitAt} onChange={(e) => setSplitAt(e.target.value)} />
-            <span className="form-hint">Comma-separated page numbers. E.g. "3,6" on a 9-page PDF creates parts: 1-2, 3-5, 6-9.</span>
+            {/* Quick presets */}
+            <div className="split-presets" role="group" aria-label="Split presets">
+              <span className="split-preset-label">Presets:</span>
+              {[
+                { label: "Every page", value: (files[0] ? Array.from({ length: (filePageInfo[files[0]?.name]?.page_count || 10) - 1 }, (_, i) => i + 2).join(",") : ""), title: "Split each page into its own file" },
+                { label: "Every 2",    value: "", title: "Split into groups of 2 pages", compute: (n) => Array.from({ length: Math.floor(n / 2) }, (_, i) => (i + 1) * 2 + 1).filter(v => v <= n).join(",") },
+                { label: "Every 5",    value: "", title: "Split into groups of 5 pages", compute: (n) => Array.from({ length: Math.floor(n / 5) }, (_, i) => (i + 1) * 5 + 1).filter(v => v <= n).join(",") },
+                { label: "First half", value: "", title: "Split into two equal halves", compute: (n) => String(Math.ceil(n / 2) + 1) },
+              ].map(({ label, value, title, compute }) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="split-preset-btn"
+                  title={title}
+                  onClick={() => {
+                    const n = filePageInfo[files[0]?.name]?.page_count || 10;
+                    setSplitAt(compute ? (compute(n) || "") : value);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              className="form-input"
+              placeholder="e.g. 3, 6  (split before page 3 and 6)"
+              value={splitAt}
+              onChange={(e) => setSplitAt(e.target.value)}
+              aria-label="Page numbers to split at"
+            />
+            <span className="form-hint">
+              Comma-separated page numbers.&nbsp;
+              <strong style={{ color: "var(--text-secondary)" }}>Examples:</strong>&nbsp;
+              <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>3,6</code>&nbsp;
+              <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>1-5</code>&nbsp;
+              <code style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "1px 5px", borderRadius: "4px" }}>5-10</code>
+            </span>
           </div>
         );
 
@@ -1100,6 +1563,9 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
             <label>PDF Password</label>
             <input className="form-input" type="password" placeholder="Enter the PDF password (leave blank if only owner-locked)" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} />
             <span className="form-hint">Enter the password used to lock this PDF. Leave blank to attempt removing owner-only restrictions.</span>
+            {files.length > 1 && (
+              <span className="form-hint">This same password will be tried on all {files.length} files — any that don't match will be listed as failures in the downloaded ZIP.</span>
+            )}
           </div>
         );
 
@@ -1123,6 +1589,9 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
                 <span className="form-hint" style={{ color: "var(--accent-danger, #f43f5e)" }}>Passwords do not match.</span>
               )}
               <span className="form-hint">Your PDF will be encrypted with AES-256.</span>
+              {files.length > 1 && (
+                <span className="form-hint">This same password will be applied to all {files.length} files.</span>
+              )}
             </div>
           </>
         );
@@ -1247,12 +1716,14 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
               <SignaturePositionPreview
                 pdfFile={files[0]}
                 pageNum={sigPageNum}
+                onPageChange={setSigPageNum}
                 sigFile={sigFile}
                 x={sigX}
                 y={sigY}
                 width={sigWidth}
                 height={sigHeight}
                 onChange={(nx, ny) => { setSigX(nx); setSigY(ny); }}
+                onResize={(nw, nh) => { setSigWidth(nw); setSigHeight(nh); }}
               />
             </div>
 
@@ -1346,6 +1817,42 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           </>
         );
 
+      case "redact-pdf":
+        return (
+          <>
+            <div className="form-group">
+              <div className="ann-preview-label" style={{ marginBottom: "8px" }}>
+                ⚠️ Redactions are permanent — content in these regions is removed from the file, not just hidden.
+              </div>
+              <label>Interactive PDF Page Preview</label>
+              <RedactPositionPreview
+                pdfFile={files[0]}
+                pageNum={redactPage}
+                onPageChange={(p) => setRedactPage(p)}
+                redactions={redactions}
+                onAddRedaction={(newRect) => setRedactions([...redactions, newRect])}
+                onRemoveRedaction={(idx) => setRedactions(redactions.filter((_, i) => i !== idx))}
+              />
+            </div>
+
+            {redactions.length > 0 && (
+              <div className="form-group">
+                <label>Redaction Queue ({redactions.length})</label>
+                <div className="ann-list">
+                  {redactions.map((r, i) => (
+                    <div key={i} className="ann-list-item">
+                      <span style={{ width: "14px", height: "14px", borderRadius: "3px", background: "#000000", flexShrink: 0, display: "inline-block" }} />
+                      <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Page {r.page} · ({r.x},{r.y}) → ({r.x2},{r.y2})</span>
+                      <button type="button" onClick={() => setRedactions(redactions.filter((_, j) => j !== i))}
+                        style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+
       default:
         return null;
     }
@@ -1353,6 +1860,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
 
   // ─── Output filename extension logic ──────────────────────────────────────
   const outputExt = (() => {
+    if (BATCH_TOOL_IDS.includes(toolId) && files.length > 1) return ".zip";
     if (["extract-text"].includes(toolId)) return ".txt";
     if (["extract-images", "pdf-to-images", "split"].includes(toolId) && (toolId !== "split" || splitAt?.includes(","))) return ".zip";
     if (["pdf-to-word"].includes(toolId)) return ".docx";
@@ -1362,12 +1870,18 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
 
   const Icon = meta.icon;
 
+  // ─── Derived action label ───────────────────────────────────────────────────
+  const actionLabel = (() => {
+    const toolTitles = { merge: "Merge PDFs", split: "Split PDF", compress: "Compress PDF" };
+    return meta.title;
+  })();
+
   return (
     <div key={toolId}>
       {/* Mobile Tool Header */}
       <div className="mobile-tool-header">
-        <button className="mobile-back-btn" onClick={() => onSelectTool && onSelectTool("home")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <button className="mobile-back-btn" onClick={() => onSelectTool && onSelectTool("home")} aria-label="Back to home">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>
           </svg>
           <span>Back</span>
@@ -1375,18 +1889,36 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         <span className="mobile-tool-title">{meta.title}</span>
       </div>
 
-      <div className="page-header">
-        <div className="tag" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-          {Icon && <Icon width="12" height="12" />} <span>{meta.tag}</span>
+      {/* ── Compact Header (2-3 lines max) ── */}
+      <div className="compact-page-header">
+        <div className="compact-header-top">
+          <nav className="breadcrumb" aria-label="Breadcrumb">
+            <button
+              className="breadcrumb-home"
+              onClick={() => onSelectTool && onSelectTool("home")}
+              aria-label="Go to Home"
+            >
+              Home
+            </button>
+            <span className="breadcrumb-sep" aria-hidden="true">›</span>
+            <span className="breadcrumb-current" aria-current="page">{meta.title}</span>
+          </nav>
+          <div className="compact-tag">
+            {Icon && <Icon width="11" height="11" aria-hidden="true" />}
+            <span>{meta.tag}</span>
+          </div>
         </div>
-        <h2>{meta.title}</h2>
-        <p>{meta.desc}</p>
+
+        <div className="compact-header-title-row">
+          <h2>{meta.title}</h2>
+          <p>{meta.desc}</p>
+        </div>
       </div>
 
       <div className="card">
         {meta.comingSoon && (
           <div className="coming-soon-banner">
-            <div className="coming-soon-banner-icon">✨</div>
+            <div className="coming-soon-banner-icon" aria-hidden="true">✨</div>
             <div>
               <div className="coming-soon-banner-title">Feature Coming Soon</div>
               <div className="coming-soon-banner-desc">
@@ -1397,14 +1929,15 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         )}
 
         <FileUpload
-          multiple={toolId === "merge" || toolId === "images-to-pdf"}
+          multiple={toolId === "merge" || toolId === "images-to-pdf" || BATCH_TOOL_IDS.includes(toolId)}
           files={files}
           setFiles={toolId === "rearrange-pages" ? handleRearrangeFiles : setFiles}
           label={
             toolId === "merge" ? "Drop multiple PDFs here (they'll be merged in order)"
             : toolId === "images-to-pdf" ? "Drop image files here (PNG, JPG, WEBP)"
-            : toolId === "word-to-pdf" ? "Drop your Word document (.docx) here"
+            : toolId === "word-to-pdf" ? "Drop your Word document(s) here — drop several to batch-convert"
             : toolId === "add-pdf" ? "Drop the base PDF here"
+            : BATCH_TOOL_IDS.includes(toolId) ? "Drop your PDF file here — drop several to batch-process"
             : "Drop your PDF file here"
           }
           showInfo={toolId !== "word-to-pdf" && toolId !== "images-to-pdf"}
@@ -1414,6 +1947,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
             : "application/pdf"
           }
           restriction={TOOL_RESTRICTIONS[toolId]}
+          onPageInfo={(name, info) => setFilePageInfo((prev) => ({ ...prev, [name]: info }))}
         />
 
         {renderControls()}
@@ -1421,7 +1955,7 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
         {/* ── Output Filename ── */}
         <div className="form-group" style={{ marginTop: "24px" }}>
           <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--accent-start)" }} aria-hidden="true">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" />
             </svg>
@@ -1434,9 +1968,10 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
               value={outputFilename} onChange={(e) => setOutputFilename(e.target.value)}
               style={{ paddingRight: "80px" }}
               disabled={meta.comingSoon}
+              aria-label="Output filename (optional)"
             />
             {outputFilename.trim() && (
-              <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }}>
+              <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, pointerEvents: "none" }} aria-hidden="true">
                 {outputExt}
               </span>
             )}
@@ -1444,26 +1979,67 @@ export default function ToolPage({ toolId, initialFile, onSelectTool }) {
           <span className="form-hint">Leave blank to use the default filename.</span>
         </div>
 
-        {/* ── Progress Bar (shown during loading) ── */}
-        {status === "loading" && <ProgressBar progress={progress} message={message} />}
+        {/* ── Progress Bar (loading) ── */}
+        {status === "loading" && (
+          <div aria-live="polite" aria-label={message}>
+            <ProgressBar progress={progress} message={message} />
+          </div>
+        )}
 
-        {/* ── Status Bar (shown after completion) ── */}
-        <StatusBar status={status} message={message} />
+        {/* ── Success Banner (inline) ── */}
+        {status === "success" && (
+          <div className="status-bar success" role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{message || "Done! Your file has been processed and downloaded automatically."}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatus(null)}
+              aria-label="Dismiss banner"
+              style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "16px", padding: "0 4px", opacity: 0.8 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* ── Error Status Bar ── */}
+        {status === "error" && <StatusBar status={status} message={message} />}
 
         <div className="action-bar">
-          <span className="info-text">
-            {files.length > 0 ? <><strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready</> : "No files selected"}
+          <span className="info-text" aria-live="polite">
+            {files.length > 0 ? (
+              <><strong>{files.length}</strong> file{files.length !== 1 ? "s" : ""} ready</>
+            ) : (
+              <span className="action-bar-idle-hint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Drop a PDF above to get started
+              </span>
+            )}
           </span>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button className="btn btn-secondary" onClick={resetState}>Reset</button>
-            <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={!canSubmit || meta.comingSoon}>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button className="btn btn-secondary" onClick={resetState} aria-label="Reset all fields">Reset</button>
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={handleSubmit}
+              disabled={!canSubmit || meta.comingSoon}
+              aria-disabled={(!canSubmit || meta.comingSoon) ? "true" : undefined}
+              aria-label={meta.comingSoon ? "Coming Soon" : actionLabel}
+            >
               {status === "loading" ? (
-                <><span className="spinner" /> Processing…</>
+                <><span className="spinner" aria-hidden="true" /> Processing…</>
               ) : meta.comingSoon ? (
                 <span>✨ Coming Soon</span>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {Icon && <Icon width="16" height="16" />}
+                  {Icon && <Icon width="16" height="16" aria-hidden="true" />}
                   <span>{meta.title}</span>
                 </div>
               )}

@@ -24,6 +24,7 @@ import {
   ExcelIcon,
   SignatureIcon,
   AnnotateIcon,
+  RedactIcon,
 } from "./Icons";
 
 const HomeIcon = (props) => (
@@ -62,13 +63,14 @@ const UTILITY_TOOLS = [
 const SECURITY_TOOLS = [
   { id: "unlock-pdf",  icon: UnlockIcon,   label: "Unlock PDF" },
   { id: "protect-pdf", icon: ProtectIcon,  label: "Protect PDF" },
+  { id: "redact-pdf",  icon: RedactIcon,   label: "Redact PDF" },
 ];
 
 const CONVERSION_TOOLS = [
   { id: "pdf-to-images",   icon: PdfToImageIcon,   label: "PDF to Images" },
   { id: "images-to-pdf",   icon: ImageToPdfIcon,   label: "Images to PDF" },
   { id: "word-to-pdf",     icon: WordToPdfIcon,    label: "Word to PDF" },
-  { id: "pdf-to-word",     icon: PdfToWordIcon,    label: "PDF to Word", comingSoon: true },
+  { id: "pdf-to-word",     icon: PdfToWordIcon,    label: "PDF to Word" },
   { id: "pdf-to-excel",    icon: ExcelIcon,        label: "PDF to Excel", comingSoon: true },
 ];
 

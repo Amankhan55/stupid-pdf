@@ -1,7 +1,18 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()  # must run before importing modules that read env vars at import time
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
+from rate_limit import limiter
 from routes.pdf_routes import router as pdf_router
+from routes.contact_routes import router as contact_router
 
 app = FastAPI(
     title="Stupid PDF API",
@@ -9,15 +20,22 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(pdf_router)
+app.include_router(contact_router)
 
 
 @app.get("/")
@@ -25,6 +43,12 @@ def root():
     return {"message": "Stupid PDF API is running 🚀", "docs": "/docs"}
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    reload = os.getenv("DEBUG", "false").lower() == "true"
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=reload)

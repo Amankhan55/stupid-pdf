@@ -410,33 +410,545 @@ def unlock_pdf(pdf_bytes: bytes, password: str = "") -> bytes:
 
 
 def pdf_to_word(pdf_bytes: bytes) -> bytes:
-    """Convert PDF to editable .docx Word file using pdf2docx."""
-    import tempfile
-    import os
-    from pdf2docx import Converter
+    """
+    Convert PDF to editable .docx Word file.
 
-    # Write PDF stream to named temp file for pdf2docx converter utility
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_in:
-        temp_in.write(pdf_bytes)
-        pdf_path = temp_in.name
+    Uses PyMuPDF for structured extraction (text with formatting, images,
+    tables) and python-docx for document construction.
 
-    docx_path = pdf_path.replace(".pdf", ".docx")
+    Key capabilities:
+    - Preserves text formatting (bold, italic, font size, color)
+    - Auto-detects headings from font size and merges wrapped heading lines
+    - Converts bullet-point symbols (Symbol font) to real bullet characters
+    - Detects chart/graph regions (vector drawings + axis labels) and renders
+      them as rasterized image snapshots instead of scattered label text
+    - Extracts and embeds real images; skips full-page background images
+    - Extracts tables with Table Grid styling
+    """
+    import fitz
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    word_doc = Document()
+
+    # Set a clean default style
+    normal_style = word_doc.styles["Normal"]
+    normal_style.font.name = "Calibri"
+    normal_style.font.size = Pt(11)
+    normal_style.paragraph_format.space_after = Pt(4)
+
+    last_table_info = None  # Track table continuations across page boundaries
+
+    for page_idx in range(len(pdf_doc)):
+        page = pdf_doc.load_page(page_idx)
+        page_rect = page.rect
+
+        if page_idx > 0:
+            word_doc.add_page_break()
+
+        # ── Identify table regions so we don't double-emit their text ──
+        table_finder = page.find_tables()
+        table_rects = []
+        table_data_list = []
+        for table in table_finder.tables:
+            if not _is_false_positive_table(table, page_rect):
+                table_rects.append(fitz.Rect(table.bbox))
+                table_data_list.append(table.extract())
+
+        # ── Detect chart/graph regions ──
+        # Charts are typically: many vector drawings concentrated in an area
+        # + small scattered text labels (axis labels, legend entries).
+        # We rasterize these regions as images instead of emitting garbled text.
+        chart_rects = _detect_chart_regions(page, table_rects)
+
+        # Combine all exclusion zones (tables + charts)
+        exclusion_rects = table_rects + chart_rects
+
+        # ── Extract structured text (blocks → lines → spans) ──
+        text_dict = page.get_text("dict", sort=True)
+        blocks = text_dict.get("blocks", [])
+
+        # Calculate page margin (leftmost text x0 coordinate)
+        all_text_x0s = [
+            s["bbox"][0]
+            for b in blocks
+            if b["type"] == 0
+            for l in b.get("lines", [])
+            for s in l.get("spans", [])
+            if s.get("text", "").strip()
+        ]
+        page_margin = min(all_text_x0s) if all_text_x0s else 56.7
+
+        # Collect all content items sorted by vertical position
+        content_items = []
+
+        for block in blocks:
+            block_rect = fitz.Rect(block["bbox"])
+
+            # Skip blocks inside table or chart regions
+            if any(block_rect.intersects(er) for er in exclusion_rects):
+                continue
+
+            y_pos = block["bbox"][1]
+
+            if block["type"] == 0:  # text block
+                content_items.append(("text", y_pos, block))
+            elif block["type"] == 1:  # image block
+                # Skip full-page background/decorative images ONLY IF page has text blocks
+                # (preserves scanned/image-only PDFs like large-doc.pdf)
+                img_area = block_rect.width * block_rect.height
+                page_area = page_rect.width * page_rect.height
+                num_text_blocks = sum(1 for b in blocks if b["type"] == 0)
+                if img_area > page_area * 0.80 and num_text_blocks > 0:
+                    continue
+                content_items.append(("image", y_pos, block))
+
+        # Insert tables at their vertical position
+        for rect, data in zip(table_rects, table_data_list):
+            content_items.append(("table", rect.y0, (rect, data)))
+
+        # Insert chart snapshots at their vertical position
+        for chart_rect in chart_rects:
+            content_items.append(("chart", chart_rect.y0, (page, chart_rect)))
+
+        # Sort by vertical position for natural reading order
+        content_items.sort(key=lambda item: item[1])
+
+        # ── Merge consecutive heading blocks that are really one heading ──
+        content_items = _merge_heading_blocks(content_items)
+
+        # ── Render each content item ──
+        for item_type, _, payload in content_items:
+            if item_type == "text":
+                _render_text_block(word_doc, payload, page_margin, page_rect)
+            elif item_type == "image":
+                _render_image_block(word_doc, payload)
+            elif item_type == "table":
+                rect, data = payload
+                num_cols = max(len(r) for r in data) if data else 0
+
+                is_continuation = False
+                if last_table_info is not None and num_cols > 0:
+                    if (
+                        num_cols == last_table_info["cols"]
+                        and abs(rect.x0 - last_table_info["x0"]) < 30
+                        and abs(rect.x1 - last_table_info["x1"]) < 30
+                    ):
+                        is_continuation = True
+
+                if is_continuation:
+                    _render_table(
+                        word_doc, data, existing_table=last_table_info["table_obj"]
+                    )
+                else:
+                    word_table = _render_table(word_doc, data)
+                    if word_table is not None and num_cols > 0:
+                        last_table_info = {
+                            "cols": num_cols,
+                            "x0": rect.x0,
+                            "x1": rect.x1,
+                            "table_obj": word_table,
+                        }
+            elif item_type == "chart":
+                _render_chart_snapshot(word_doc, payload[0], payload[1])
+
+    output = io.BytesIO()
+    word_doc.save(output)
+    return output.getvalue()
+
+
+# ── Helpers for pdf_to_word ──────────────────────────────────────────────────
+
+
+_BULLET_CHARS = {"\uf0b7", "\uf0a7", "\u2022", "\u25cf", "\u25cb", "\u25aa"}
+
+
+def _is_bullet_span(span: dict) -> bool:
+    """Check if a span is a bullet-point symbol (Symbol/Wingdings font)."""
+    font = span.get("font", "").lower()
+    text = span.get("text", "").strip()
+    if font in ("symbol", "wingdings", "zapfdingbats"):
+        return True
+    if text in _BULLET_CHARS:
+        return True
+    return False
+
+
+def _get_block_heading_level(block: dict) -> int:
+    """Return heading level (1-3) for a text block, or 0 for normal text."""
+    lines = block.get("lines", [])
+    if not lines:
+        return 0
+    sizes = [
+        span["size"]
+        for line in lines
+        for span in line.get("spans", [])
+        if span.get("text", "").strip()
+    ]
+    if not sizes:
+        return 0
+    avg = sum(sizes) / len(sizes)
+    if avg >= 22:
+        return 1
+    if avg >= 17:
+        return 2
+    if avg >= 14:
+        return 3
+    return 0
+
+
+def _merge_heading_blocks(content_items: list) -> list:
+    """
+    Merge consecutive text blocks that are at the same heading level.
+    This fixes multi-line headings that PyMuPDF splits into separate blocks.
+    """
+    if not content_items:
+        return content_items
+
+    merged = [content_items[0]]
+
+    for item in content_items[1:]:
+        prev = merged[-1]
+
+        # Only merge if both are text blocks
+        if prev[0] == "text" and item[0] == "text":
+            prev_level = _get_block_heading_level(prev[2])
+            curr_level = _get_block_heading_level(item[2])
+
+            # Merge if both are headings at the same level, and they're close
+            # vertically (within ~30 pts, typical line spacing for headings)
+            if prev_level > 0 and prev_level == curr_level:
+                prev_bottom = prev[2]["bbox"][3]
+                curr_top = item[2]["bbox"][1]
+                if curr_top - prev_bottom < 30:
+                    # Merge: append current block's lines to previous block
+                    merged_block = dict(prev[2])
+                    merged_block["lines"] = list(prev[2].get("lines", [])) + list(item[2].get("lines", []))
+                    merged_block["bbox"] = (
+                        min(prev[2]["bbox"][0], item[2]["bbox"][0]),
+                        prev[2]["bbox"][1],
+                        max(prev[2]["bbox"][2], item[2]["bbox"][2]),
+                        item[2]["bbox"][3],
+                    )
+                    merged[-1] = (prev[0], prev[1], merged_block)
+                    continue
+
+        merged.append(item)
+
+    return merged
+
+
+def _detect_chart_regions(page, table_rects: list) -> list:
+    """
+    Detect chart/graph regions on a page.
+
+    A chart region is identified by a dense cluster of vector drawings
+    (bars, lines, axes) combined with small scattered text labels.
+    We filter out decorative elements (page backgrounds, thin separator
+    lines) to avoid falsely treating entire pages as charts.
+    """
+    import fitz
+
+    drawings = page.get_drawings()
+    if len(drawings) < 10:
+        return []
+
+    page_rect = page.rect
+    page_area = page_rect.width * page_rect.height
+
+    # ── Filter out non-chart drawings ──
+    chart_candidate_rects = []
+    for d in drawings:
+        r = d.get("rect")
+        if not r:
+            continue
+        rect = fitz.Rect(r)
+        rect_area = rect.width * rect.height
+
+        # Skip page-background rectangles (>50% of page)
+        if rect_area > page_area * 0.50:
+            continue
+
+        # Skip thin lines / hairlines (likely underlines, separators, borders)
+        if rect.width < 2 and rect.height < 2:
+            continue
+
+        chart_candidate_rects.append(rect)
+
+    # Need a meaningful cluster of drawing primitives
+    if len(chart_candidate_rects) < 8:
+        return []
+
+    # Find the bounding box of candidate drawings
+    union = chart_candidate_rects[0]
+    for r in chart_candidate_rects[1:]:
+        union = union | r
+
+    # The chart region should be a moderate portion of the page
+    chart_area = union.width * union.height
+    if chart_area < page_area * 0.03 or chart_area > page_area * 0.70:
+        return []
+
+    # Check density: enough drawings concentrated in this region
+    contained = sum(1 for r in chart_candidate_rects if union.contains(r))
+    if contained < 8:
+        return []
+
+    # Skip if this region heavily overlaps with a table
+    for tr in table_rects:
+        overlap = union & tr
+        if overlap.is_empty:
+            continue
+        overlap_ratio = (overlap.width * overlap.height) / chart_area
+        if overlap_ratio > 0.5:
+            return []
+
+    # Expand slightly to capture axis labels just outside the chart
+    expanded = fitz.Rect(
+        union.x0 - 20,
+        union.y0 - 20,
+        union.x1 + 20,
+        union.y1 + 20,
+    )
+    expanded = expanded & page_rect  # clamp to page bounds
+
+    return [expanded]
+
+
+def _render_text_block(word_doc, block: dict, page_margin: float = 56.7, page_rect=None) -> None:
+    """Add a text block to the Word document with font formatting and precise alignment/indentation."""
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    lines = block.get("lines", [])
+    if not lines:
+        return
+
+    # ── Check for bullet points ──
+    has_bullet = False
+    for line in lines:
+        for span in line.get("spans", []):
+            if _is_bullet_span(span):
+                has_bullet = True
+                break
+        if has_bullet:
+            break
+
+    # Determine heading level
+    heading_level = _get_block_heading_level(block)
+
+    if heading_level == 1:
+        para = word_doc.add_heading(level=1)
+    elif heading_level == 2:
+        para = word_doc.add_heading(level=2)
+    elif heading_level == 3:
+        para = word_doc.add_heading(level=3)
+    elif has_bullet:
+        para = word_doc.add_paragraph(style="List Bullet")
+    else:
+        para = word_doc.add_paragraph()
+
+    # ── Auto-center headings if horizontally centered on page ──
+    if heading_level > 0 and page_rect is not None:
+        block_bbox = block.get("bbox", (0, 0, 0, 0))
+        block_center = (block_bbox[0] + block_bbox[2]) / 2.0
+        page_center = page_rect.width / 2.0
+        if abs(block_center - page_center) < 35:
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # ── Calculate exact bullet & paragraph indentation matching PDF ──
+    if has_bullet:
+        bullet_span = None
+        first_text_span = None
+        for l in lines:
+            for s in l.get("spans", []):
+                if not s.get("text", "").strip():
+                    continue
+                if _is_bullet_span(s):
+                    if bullet_span is None:
+                        bullet_span = s
+                else:
+                    if first_text_span is None:
+                        first_text_span = s
+
+        if bullet_span and first_text_span:
+            b_x0 = bullet_span["bbox"][0]
+            t_x0 = first_text_span["bbox"][0]
+            left_indent = max(0, t_x0 - page_margin)
+            hanging_indent = -(t_x0 - b_x0)
+            para.paragraph_format.left_indent = Pt(left_indent)
+            para.paragraph_format.first_line_indent = Pt(hanging_indent)
+    elif heading_level == 0:
+        first_text_span = None
+        for l in lines:
+            for s in l.get("spans", []):
+                if s.get("text", "").strip():
+                    first_text_span = s
+                    break
+            if first_text_span:
+                break
+        if first_text_span:
+            t_x0 = first_text_span["bbox"][0]
+            indent = max(0, t_x0 - page_margin)
+            if indent > 12:  # Only apply for noticeably indented paragraphs (>12pt)
+                para.paragraph_format.left_indent = Pt(indent)
+
+    for line in lines:
+        spans = line.get("spans", [])
+        for span in spans:
+            text = span.get("text", "")
+
+            # Replace bullet symbols with actual bullet character or skip them
+            # since we're already using "List Bullet" paragraph style
+            if _is_bullet_span(span):
+                continue  # skip the bullet symbol; paragraph style handles it
+
+            if not text:
+                continue
+
+            run = para.add_run(text)
+
+            # Font size (skip for headings — let Word style control it)
+            if heading_level == 0:
+                run.font.size = Pt(span.get("size", 11))
+
+            # Bold / italic from flags bitmask
+            flags = span.get("flags", 0)
+            run.font.bold = bool(flags & 16)    # bit 4
+            run.font.italic = bool(flags & 2)   # bit 1
+
+            # Font color (integer RGB packed as 0xRRGGBB)
+            color_int = span.get("color", 0)
+            if color_int and color_int != 0:
+                r = (color_int >> 16) & 0xFF
+                g = (color_int >> 8) & 0xFF
+                b = color_int & 0xFF
+                run.font.color.rgb = RGBColor(r, g, b)
+
+            # Clean up PDF font subset names like "ABCDEF+Arial-Bold" → "Arial"
+            font_name = span.get("font", "")
+            if font_name:
+                clean = font_name.split("+")[-1]  # strip subset prefix
+                base = clean.split("-")[0]          # strip style suffix
+                if base.lower() not in ("symbol", "wingdings", "zapfdingbats"):
+                    run.font.name = base or "Calibri"
+
+        # Add a space between lines within the same block (natural flow)
+        if line is not lines[-1]:
+            last_text = ""
+            for s in reversed(spans):
+                last_text = s.get("text", "")
+                if last_text:
+                    break
+            if last_text and not last_text.endswith(" "):
+                para.add_run(" ")
+
+
+def _render_image_block(word_doc, block: dict) -> None:
+    """Embed an image block into the Word document."""
+    from docx.shared import Inches
+
+    img_data = block.get("image")
+    if not img_data:
+        return
 
     try:
-        cv = Converter(pdf_path)
-        cv.convert(docx_path)
-        cv.close()
+        img_stream = io.BytesIO(img_data)
+        # Scale to fit within 6-inch page width while keeping aspect ratio
+        bbox = block["bbox"]
+        img_width_pts = bbox[2] - bbox[0]
+        width_inches = min(img_width_pts / 72.0, 6.0)
+        width_inches = max(width_inches, 0.5)  # at least half an inch
+        word_doc.add_picture(img_stream, width=Inches(width_inches))
+    except Exception:
+        pass  # skip images we can't decode (e.g. JBIG2 masks)
 
-        with open(docx_path, "rb") as f:
-            docx_bytes = f.read()
 
-        return docx_bytes
-    finally:
-        # Clean up both temporary files from the server OS disk
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-        if os.path.exists(docx_path):
-            os.remove(docx_path)
+def _render_chart_snapshot(word_doc, page, chart_rect) -> None:
+    """Rasterize a chart/graph region of the page and embed as an image."""
+    from docx.shared import Inches
+
+    try:
+        # Render just the chart region at 200 DPI for crisp output
+        clip = chart_rect
+        mat = page.derotation_matrix  # handle rotated pages
+        zoom = 200 / 72.0  # 200 DPI
+        mat = mat * __import__("fitz").Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat, clip=clip)
+
+        img_bytes = pix.tobytes("png")
+        img_stream = io.BytesIO(img_bytes)
+
+        # Scale to fit nicely in the document
+        width_inches = min(chart_rect.width / 72.0, 6.0)
+        word_doc.add_picture(img_stream, width=Inches(width_inches))
+    except Exception:
+        pass  # if rasterization fails, skip silently
+
+
+def _is_false_positive_table(table, page_rect) -> bool:
+    """
+    Check if PyMuPDF's TableFinder detected a false positive table.
+    Page borders and decorative outer frames are often misidentified as giant
+    single-cell tables containing long narrative paragraphs.
+    """
+    import fitz
+    bbox = fitz.Rect(table.bbox)
+    h_ratio = bbox.height / page_rect.height
+    area_ratio = (bbox.width * bbox.height) / (page_rect.width * page_rect.height)
+
+    # A table taking >60% of page area and >75% of page height is likely a page border frame
+    if area_ratio > 0.60 and h_ratio > 0.75:
+        data = table.extract()
+        for row in data:
+            for cell in row:
+                if cell and len(str(cell)) > 150:
+                    return True
+    return False
+
+
+def _render_table(word_doc, table_data: list, existing_table=None):
+    """Add a table to the Word document, or append rows to an existing table."""
+    from docx.shared import Pt
+
+    if not table_data:
+        return None
+
+    num_rows = len(table_data)
+    num_cols = max(len(row) for row in table_data) if table_data else 0
+    if num_rows == 0 or num_cols == 0:
+        return None
+
+    if existing_table is not None:
+        word_table = existing_table
+        for row in table_data:
+            row_cells = word_table.add_row().cells
+            for j, cell_text in enumerate(row):
+                if j < len(row_cells):
+                    row_cells[j].text = cell_text or ""
+                    for paragraph in row_cells[j].paragraphs:
+                        for run in paragraph.runs:
+                            run.font.size = Pt(10)
+        return word_table
+
+    word_table = word_doc.add_table(rows=num_rows, cols=num_cols)
+    word_table.style = "Table Grid"
+
+    for i, row in enumerate(table_data):
+        for j, cell_text in enumerate(row):
+            if j < num_cols:
+                cell = word_table.rows[i].cells[j]
+                cell.text = cell_text or ""
+                # Apply a readable font size to table cells
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(10)
+
+    # Add a small gap after the table
+    word_doc.add_paragraph()
+    return word_table
 
 
 # ─── NEW FEATURES ─────────────────────────────────────────────────────────────
@@ -748,4 +1260,39 @@ def annotate_pdf(pdf_bytes: bytes, annotations: list) -> bytes:
 
     output = io.BytesIO()
     doc.save(output)
+    return output.getvalue()
+
+
+def redact_pdf(pdf_bytes: bytes, rects: list) -> bytes:
+    """
+    Permanently remove content (text + graphics) inside the given rectangles
+    and draw a solid black box over each — unlike a watermark/annotation
+    overlay, the underlying content is deleted, not just visually covered.
+    Each rect: {page: 1-indexed page number, x, y, x2, y2} in PDF points.
+    """
+    import fitz
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    total = len(doc)
+    touched_pages = set()
+
+    for r in rects:
+        page_num = int(r.get("page", 1))
+        page_idx = max(0, min(page_num - 1, total - 1))
+        page = doc.load_page(page_idx)
+        x = float(r.get("x", 0))
+        y = float(r.get("y", 0))
+        x2 = float(r.get("x2", x + 100))
+        y2 = float(r.get("y2", y + 20))
+        page.add_redact_annot(fitz.Rect(x, y, x2, y2), fill=(0, 0, 0))
+        touched_pages.add(page_idx)
+
+    for page_idx in touched_pages:
+        # graphics=2 also strips graphics that only partially overlap the
+        # rect (the default, graphics=1, only removes fully-contained ones
+        # and leaves a partially-covered vector shape intact underneath the
+        # black box — defeats the purpose of "not just an overlay").
+        doc.load_page(page_idx).apply_redactions(images=2, graphics=2, text=0)
+
+    output = io.BytesIO()
+    doc.save(output, garbage=4, deflate=True)
     return output.getvalue()
