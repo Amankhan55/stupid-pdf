@@ -1617,11 +1617,8 @@ body {
 }
 
 .footer-logo-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: rgba(20, 241, 149, 0.08);
-  border: 1px solid rgba(20, 241, 149, 0.2);
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1629,8 +1626,9 @@ body {
 }
 
 .footer-logo-img {
-  width: 16px;
-  height: 16px;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
 }
 
 .footer-brand-name {
@@ -3618,31 +3616,43 @@ select.form-input {
   border: 1.5px dashed rgba(255, 190, 61, 0.35) !important;
   background: rgba(18, 22, 30, 0.7) !important;
   position: relative;
+  overflow: hidden;
 }
 
 .card-coming-soon.disabled {
-  opacity: 0.45 !important;
+  opacity: 0.55 !important;
   cursor: not-allowed !important;
-  /* Blur the card content so it reads as unavailable */
   filter: blur(0.3px) saturate(0.6);
 }
 
-/* Lock icon overlay — appears on hover to reinforce unavailability */
-.card-coming-soon.disabled::before {
-  content: '🔒';
+/* Vector Lock icon overlay — appears on hover to reinforce unavailability */
+.card-soon-overlay {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  gap: 8px;
   opacity: 0;
-  background: rgba(9, 11, 16, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(9, 11, 16, 0.75);
+  backdrop-filter: blur(6px);
   border-radius: 18px;
   z-index: 10;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
+}
+
+.overlay-soon-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffbe3d;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(255, 190, 61, 0.15);
+  padding: 4px 12px;
+  border-radius: 99px;
+  border: 1px solid rgba(255, 190, 61, 0.3);
 }
 
 /* Suppress ALL hover effects for coming soon cards */
@@ -3654,11 +3664,14 @@ select.form-input {
   filter: blur(0.3px) saturate(0.6) !important;
 }
 
-.card-coming-soon.disabled:hover::before {
+.card-coming-soon.disabled:hover .card-soon-overlay {
   opacity: 1;
 }
 
 .card-soon-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10px;
   font-weight: 800;
   color: #ffbe3d;

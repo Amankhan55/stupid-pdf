@@ -11,7 +11,12 @@ import {
   UnlockIcon,
   RotateIcon,
   ExtractIcon,
-  DeleteIcon
+  DeleteIcon,
+  PopularSparkIcon,
+  InMemoryIcon,
+  PrivacyShieldIcon,
+  StatelessEngineIcon,
+  ComingSoonLockIcon
 } from "./Icons";
 import { formatBytes } from "../utils/format";
 
@@ -119,10 +124,14 @@ export default function HomePage({ onSelect }) {
               <Icon width="24" height="24" />
             </div>
             {isSoon && (
-              <span className="badge-soon">Coming Soon</span>
+              <span className="badge-soon">
+                <ComingSoonLockIcon width="12" height="12" /> Coming Soon
+              </span>
             )}
             {!isSoon && isPopular && (
-              <span className="badge-popular">⭐ Popular</span>
+              <span className="badge-popular">
+                <PopularSparkIcon width="13" height="13" /> Popular
+              </span>
             )}
           </div>
 
@@ -135,7 +144,9 @@ export default function HomePage({ onSelect }) {
             {category}
           </span>
           {isSoon ? (
-            <span className="card-soon-text">Coming Soon</span>
+            <span className="card-soon-text">
+              <ComingSoonLockIcon width="11" height="11" /> Coming Soon
+            </span>
           ) : (
             <div className="action-arrow-circle" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -145,6 +156,13 @@ export default function HomePage({ onSelect }) {
             </div>
           )}
         </div>
+
+        {isSoon && (
+          <div className="card-soon-overlay" aria-hidden="true">
+            <ComingSoonLockIcon width="32" height="32" style={{ filter: "drop-shadow(0 0 12px rgba(255, 190, 61, 0.5))" }} />
+            <span className="overlay-soon-label">Coming Soon</span>
+          </div>
+        )}
       </div>
     );
   };
@@ -159,9 +177,15 @@ export default function HomePage({ onSelect }) {
             <div className="hero-left-content">
               {/* Feature Badges */}
               <div className="hero-badges-row">
-                <span className="hero-pill-badge">⚡ In Memory</span>
-                <span className="hero-pill-badge">🔒 Privacy First</span>
-                <span className="hero-pill-badge">⬢ Stateless Engine</span>
+                <span className="hero-pill-badge">
+                  <InMemoryIcon width="14" height="14" /> In Memory
+                </span>
+                <span className="hero-pill-badge">
+                  <PrivacyShieldIcon width="14" height="14" /> Privacy First
+                </span>
+                <span className="hero-pill-badge">
+                  <StatelessEngineIcon width="14" height="14" /> Stateless Engine
+                </span>
               </div>
 
               {/* Title & Tagline */}
@@ -393,7 +417,7 @@ export default function HomePage({ onSelect }) {
           <div className="popular-tools-section">
             <div className="popular-tools-heading">
               <h2 className="popular-tools-title">
-                <span aria-hidden="true">⭐</span> Popular Tools
+                <PopularSparkIcon width="22" height="22" style={{ filter: "drop-shadow(0 0 10px rgba(20, 241, 149, 0.5))" }} aria-hidden="true" /> Popular Tools
               </h2>
             </div>
             <div className="popular-tools-grid" role="list" aria-label="Popular PDF tools">
