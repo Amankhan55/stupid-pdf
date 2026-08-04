@@ -517,3 +517,83 @@ export const ComingSoonLockIcon = ({ width = "16", height = "16", className = ""
   </svg>
 );
 
+/* ─── 32. ORIGINAL CONTACT PAGE ICONS ────────────────────────────────────── */
+export const ResponseClockIcon = ({ width = "20", height = "20", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <defs>
+      <linearGradient id="resp-clk-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#14F195" />
+        <stop offset="100%" stopColor="#00C9FF" />
+      </linearGradient>
+    </defs>
+    <circle cx="12" cy="12" r="9" stroke="url(#resp-clk-grad)" strokeWidth="2" fill="rgba(20, 241, 149, 0.1)" />
+    <path d="M12 7V12L15.5 14" stroke="url(#resp-clk-grad)" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="12" cy="12" r="1.5" fill="#14F195" />
+  </svg>
+);
+
+export const GitHubBranchIcon = ({ width = "20", height = "20", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <defs>
+      <linearGradient id="gh-node-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00C9FF" />
+        <stop offset="100%" stopColor="#14F195" />
+      </linearGradient>
+    </defs>
+    <path d="M6 3V15" stroke="url(#gh-node-grad)" strokeWidth="2.2" strokeLinecap="round" />
+    <circle cx="6" cy="18" r="3" fill="url(#gh-node-grad)" />
+    <circle cx="6" cy="6" r="3" fill="url(#gh-node-grad)" />
+    <path d="M6 9C9 9 12 11 12 14" stroke="url(#gh-node-grad)" strokeWidth="2.2" strokeLinecap="round" />
+    <circle cx="15" cy="16" r="3" fill="url(#gh-node-grad)" />
+  </svg>
+);
+
+export const ContactUserIcon = ({ width = "16", height = "16", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <path d="M20 21C20 17.134 16.4183 14 12 14C7.58172 14 4 17.134 4 21" stroke="#14F195" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="12" cy="7" r="4" stroke="#14F195" strokeWidth="2" fill="rgba(20, 241, 149, 0.15)" />
+  </svg>
+);
+
+export const ContactEmailIcon = ({ width = "16", height = "16", className = "", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="3" stroke="#00C9FF" strokeWidth="2" fill="rgba(0, 201, 255, 0.1)" />
+    <path d="M4 7L12 13L20 7" stroke="#00C9FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export const TopicQuestionIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="3" />
+  </svg>
+);
+
+export const TopicBugIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="8" y="6" width="8" height="14" rx="4" />
+    <line x1="6" y1="10" x2="18" y2="10" />
+    <line x1="6" y1="14" x2="18" y2="14" />
+    <line x1="6" y1="18" x2="18" y2="18" />
+    <path d="M12 2v4" />
+  </svg>
+);
+
+export const TopicFeatureIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.55.59 2.97 1.5 4 .76.76 1.23 1.52 1.41 2.5" />
+  </svg>
+);
+
+export const TopicPartnershipIcon = ({ width = "14", height = "14", ...props }) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
